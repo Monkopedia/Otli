@@ -6,3 +6,10 @@
  */
 
 rootProject.name = "Kot-compiler"
+
+dependencyResolutionManagement {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
