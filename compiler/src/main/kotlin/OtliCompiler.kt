@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
@@ -62,25 +62,22 @@ private class DisposableZipFileSystemAccessor private constructor(
     }
 }
 
-class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
-    class Kot2CCompilerPerformanceManager :
-        CommonCompilerPerformanceManager("Kotlin to JS Compiler")
+class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
+    class OtliCompilerPerformanceManager : CommonCompilerPerformanceManager("Otli Compiler")
 
     override val defaultPerformanceManager: CommonCompilerPerformanceManager =
-        Kot2CCompilerPerformanceManager()
+        OtliCompilerPerformanceManager()
 
-    override fun createArguments(): Kot2CCompilerArguments = Kot2CCompilerArguments()
+    override fun createArguments(): OtliCompilerArguments = OtliCompilerArguments()
 
-    private class IrToKotTransformer(val module: ModulesStructure) {
+    private class OtliIrTransformer(val module: ModulesStructure) {
 
-        fun compileAndTransformIrNew(): IrModuleFragment = loadIr(
-            module,
-            IrFactoryImplForKotIC()
-        ).module
+        fun compileAndTransformIrNew(): IrModuleFragment =
+            loadIr(module, IrFactoryImplForOtli()).module
     }
 
     override fun doExecute(
-        arguments: Kot2CCompilerArguments,
+        arguments: OtliCompilerArguments,
         configuration: CompilerConfiguration,
         rootDisposable: Disposable,
         paths: KotlinPaths?
@@ -92,7 +89,7 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         if (pluginLoadResult != OK) return pluginLoadResult
 
         if (arguments.script) {
-            messageCollector.report(ERROR, "K/JS does not support Kotlin script (*.kts) files")
+            messageCollector.report(ERROR, "K/Otli does not support Kotlin script (*.kts) files")
             return COMPILATION_ERROR
         }
 
@@ -150,28 +147,27 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
 
         // ----
 
-        val environmentForKot =
-            KotlinCoreEnvironment.createForProduction(
-                rootDisposable,
-                configuration,
-                EnvironmentConfigFiles.METADATA_CONFIG_FILES
-            )
-        val projectKot = environmentForKot.project
-        val configurationKot = environmentForKot.configuration
-        val sourcesFiles = environmentForKot.getSourceFiles()
+        val environmentForOtli = KotlinCoreEnvironment.createForProduction(
+            rootDisposable,
+            configuration,
+            EnvironmentConfigFiles.METADATA_CONFIG_FILES
+        )
+        val projectOtli = environmentForOtli.project
+        val configurationOtli = environmentForOtli.configuration
+        val sourcesFiles = environmentForOtli.getSourceFiles()
 
-        configurationKot.put(
+        configurationOtli.put(
             CLIConfigurationKeys.ALLOW_KOTLIN_PACKAGE,
             arguments.allowKotlinPackage
         )
-        configurationKot.put(
+        configurationOtli.put(
             CLIConfigurationKeys.RENDER_DIAGNOSTIC_INTERNAL_NAME,
             arguments.renderInternalDiagnosticNames
         )
 
         val zipAccessor = DisposableZipFileSystemAccessor(64)
         Disposer.register(rootDisposable, zipAccessor)
-        configurationKot.put(KotConfigurationKeys.ZIP_FILE_SYSTEM_ACCESSOR, zipAccessor)
+        configurationOtli.put(OtliConfigurationKeys.ZIP_FILE_SYSTEM_ACCESSOR, zipAccessor)
 
         val outputDirPath = arguments.outputDir
         val outputName = arguments.moduleName
@@ -202,7 +198,7 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         }
 
         val moduleName = arguments.irModuleName ?: outputName
-        configurationKot.put(CommonConfigurationKeys.MODULE_NAME, moduleName)
+        configurationOtli.put(CommonConfigurationKeys.MODULE_NAME, moduleName)
 
         val outputDir = File(outputDirPath)
 
@@ -211,7 +207,7 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         val includes = arguments.includes
         if (includes == null) {
             sourceModule =
-                produceSourceModule(environmentForKot, libraries, friendLibraries)
+                produceSourceModule(environmentForOtli, libraries, friendLibraries)
         }
 
         val module = if (includes != null) {
@@ -227,9 +223,9 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
                     ?: error("No library with name $includes ($includesPath) found")
             val kLib = MainModule.Klib(mainLibPath)
             ModulesStructure(
-                projectKot,
+                projectOtli,
                 kLib,
-                configurationKot,
+                configurationOtli,
                 libraries,
                 friendLibraries
             )
@@ -240,9 +236,9 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         val start = System.currentTimeMillis()
 
         try {
-            val irToKotTransformer =
-                IrToKotTransformer(module)
-            val outputs = irToKotTransformer.compileAndTransformIrNew()
+            val otliIrTransformer =
+                OtliIrTransformer(module)
+            val outputs = otliIrTransformer.compileAndTransformIrNew()
 
             messageCollector.report(
                 INFO,
@@ -269,19 +265,19 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
     }
 
     private fun produceSourceModule(
-        environmentForKot: KotlinCoreEnvironment,
+        environmentForOtli: KotlinCoreEnvironment,
         libraries: List<String>,
         friendLibraries: List<String>
     ): ModulesStructure {
-        val configuration = environmentForKot.configuration
+        val configuration = environmentForOtli.configuration
         val messageCollector =
             configuration.getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY)
         val diagnosticsReporter = DiagnosticReporterFactory.createPendingReporter(messageCollector)
 
-        val mainModule = MainModule.SourceFiles(environmentForKot.getSourceFiles())
+        val mainModule = MainModule.SourceFiles(environmentForOtli.getSourceFiles())
         val moduleStructure =
             ModulesStructure(
-                environmentForKot.project,
+                environmentForOtli.project,
                 mainModule,
                 configuration,
                 libraries,
@@ -290,12 +286,12 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         do {
             val analyzerFacade = TopDownAnalyzerFacadeForJSIR
             moduleStructure.runAnalysis(
-                AnalyzerWithCompilerReport(environmentForKot.configuration),
+                AnalyzerWithCompilerReport(environmentForOtli.configuration),
                 analyzerFacade = analyzerFacade
             )
-            val result = moduleStructure.frontEndResult.kotAnalysisResult
+            val result = moduleStructure.frontEndResult.otliAnalysisResult
             if (result is JsAnalysisResult.RetryWithAdditionalRoots) {
-                environmentForKot.addKotlinSourceRoots(result.additionalKotlinRoots)
+                environmentForOtli.addKotlinSourceRoots(result.additionalKotlinRoots)
             }
         } while (result is JsAnalysisResult.RetryWithAdditionalRoots)
 
@@ -305,7 +301,7 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         val analyzedOutput =
             compileModuleToAnalyzedFirWithPsi(
                 moduleStructure = moduleStructure,
-                ktFiles = environmentForKot.getSourceFiles(),
+                ktFiles = environmentForOtli.getSourceFiles(),
                 libraries = libraries,
                 friendLibraries = friendLibraries,
                 diagnosticsReporter = diagnosticsReporter,
@@ -326,7 +322,7 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
 
     override fun setupPlatformSpecificArgumentsAndServices(
         configuration: CompilerConfiguration,
-        arguments: Kot2CCompilerArguments,
+        arguments: OtliCompilerArguments,
         services: Services
     ) {
         val messageCollector =
@@ -351,18 +347,18 @@ class Kot2CCompiler : CLICompiler<Kot2CCompilerArguments>() {
         )
     }
 
-    override fun executableScriptFileName(): String = "kotc"
+    override fun executableScriptFileName(): String = "otlic"
 
     override fun createMetadataVersion(versionArray: IntArray): BinaryVersion =
         KlibMetadataVersion(*versionArray)
 
-    override fun MutableList<String>.addPlatformOptions(arguments: Kot2CCompilerArguments) {}
+    override fun MutableList<String>.addPlatformOptions(arguments: OtliCompilerArguments) {}
 
     companion object {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            doMain(Kot2CCompiler(), args)
+            doMain(OtliCompiler(), args)
         }
 
         private fun reportCompiledSourcesList(

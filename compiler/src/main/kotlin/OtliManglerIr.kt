@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import java.lang.StringBuilder
 import org.jetbrains.kotlin.backend.common.serialization.mangle.KotlinExportChecker
@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrMangleCompu
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 
-abstract class AbstractCManglerIr : IrBasedKotlinManglerImpl() {
+abstract class AbstractOtliManglerIr : IrBasedKotlinManglerImpl() {
     private class CIrExportChecker(compatibleMode: Boolean) :
         IrExportCheckerVisitor(compatibleMode) {
         override fun IrDeclaration.isPlatformSpecificExported() = false
@@ -29,9 +29,9 @@ abstract class AbstractCManglerIr : IrBasedKotlinManglerImpl() {
         IrMangleComputer(StringBuilder(256), mode, compatibleMode)
 }
 
-object CManglerIr : AbstractCManglerIr()
+object OtliManglerIr : AbstractOtliManglerIr()
 
-abstract class AbstractCDescriptorMangler : DescriptorBasedKotlinManglerImpl() {
+abstract class AbstractOtliDescriptorMangler : DescriptorBasedKotlinManglerImpl() {
     companion object {
         private val exportChecker = CDescriptorExportChecker()
     }
@@ -51,4 +51,4 @@ abstract class AbstractCDescriptorMangler : DescriptorBasedKotlinManglerImpl() {
         DescriptorMangleComputer(StringBuilder(256), mode)
 }
 
-object CManglerDesc : AbstractCDescriptorMangler()
+object OtliManglerDesc : AbstractOtliDescriptorMangler()

@@ -1,11 +1,11 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import org.jetbrains.kotlin.cli.common.arguments.copyCommonKlibBasedCompilerArguments
 
-fun copyKot2CCompilerArguments(
-    from: Kot2CCompilerArguments,
-    to: Kot2CCompilerArguments
-): Kot2CCompilerArguments {
+fun copyOtliCompilerArguments(
+    from: OtliCompilerArguments,
+    to: OtliCompilerArguments
+): OtliCompilerArguments {
     copyCommonKlibBasedCompilerArguments(from, to)
 
     to.friendModules = from.friendModules

@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSupportForLinker
 import org.jetbrains.kotlin.backend.common.overrides.IrLinkerFakeOverrideProvider
@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.containsErrorCode
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
 
-class CIrLinker(
+class OtliIrLinker(
     private val currentModule: ModuleDescriptor?,
     messageCollector: MessageCollector,
     builtIns: IrBuiltIns,
@@ -50,7 +50,7 @@ class CIrLinker(
         IrLinkerFakeOverrideProvider(
             linker = this,
             symbolTable = symbolTable,
-            mangler = CManglerIr,
+            mangler = OtliManglerIr,
             typeSystem = IrTypeSystemContextImpl(builtIns),
             friendModules = friendModules,
             partialLinkageSupport = partialLinkageSupport
@@ -80,7 +80,7 @@ class CIrLinker(
                 )
 
             else ->
-                CLazyIrModuleDeserializer(
+                OtliLazyIrModuleDeserializer(
                     moduleDescriptor,
                     libraryAbiVersion,
                     lazyIrGenerator

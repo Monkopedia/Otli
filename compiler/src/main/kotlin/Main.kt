@@ -1,9 +1,9 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import java.io.File
 
 fun main(args: Array<String>) {
-    val compiler = Kot2CCompiler()
+    val compiler = OtliCompiler()
     println("Hello there")
     val testFile = File("test.kt")
     testFile.writeText(

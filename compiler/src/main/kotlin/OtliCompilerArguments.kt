@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import kotlin.collections.set
 import org.jetbrains.kotlin.cli.common.arguments.Argument
@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 
-class Kot2CCompilerArguments : CommonKlibBasedCompilerArguments() {
+class OtliCompilerArguments : CommonKlibBasedCompilerArguments() {
     companion object {
         @JvmStatic
         private val serialVersionUID = 0L
@@ -109,10 +109,10 @@ class Kot2CCompilerArguments : CommonKlibBasedCompilerArguments() {
         ) {
             collector.report(
                 CompilerMessageSeverity.ERROR,
-                "JS backend cannot be used with language or API version below 1.4"
+                "Otli backend cannot be used with language or API version below 1.4"
             )
         }
     }
 
-    override fun copyOf(): Freezable = copyKot2CCompilerArguments(this, Kot2CCompilerArguments())
+    override fun copyOf(): Freezable = copyOtliCompilerArguments(this, OtliCompilerArguments())
 }

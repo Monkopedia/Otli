@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import org.jetbrains.kotlin.backend.common.serialization.DescriptorByIdSignatureFinderImpl
 import org.jetbrains.kotlin.backend.common.serialization.IrModuleDeserializer
@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 
-class CLazyIrModuleDeserializer(
+class OtliLazyIrModuleDeserializer(
     moduleDescriptor: ModuleDescriptor,
     libraryAbiVersion: KotlinAbiVersion,
     private val stubGenerator: DeclarationStubGenerator
@@ -30,7 +30,7 @@ class CLazyIrModuleDeserializer(
     // TODO: implement proper check whether `idSig` belongs to this module
     override fun contains(idSig: IdSignature): Boolean = true
 
-    private val descriptorFinder = DescriptorByIdSignatureFinderImpl(moduleDescriptor, CManglerDesc)
+    private val descriptorFinder = DescriptorByIdSignatureFinderImpl(moduleDescriptor, OtliManglerDesc)
 
     override fun tryDeserializeIrSymbol(
         idSig: IdSignature,

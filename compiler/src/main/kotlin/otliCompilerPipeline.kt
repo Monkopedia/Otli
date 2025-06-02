@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import java.nio.file.Paths
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys

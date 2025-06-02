@@ -1,10 +1,10 @@
-# Kot
+# Otli
 
-Kot is my current answer to embedded development. I know C/C++ and the ins/outs of it, and have no
+Otli is my current answer to embedded development. I know C/C++ and the ins/outs of it, and have no
 problem with coding with it in theory. However, I have become old and set in my ways, and 99.99% of
 all my other programming is in kotlin. So the problem is not that I don't want to program in C, its
-that I constantly use kotlin syntax and features and am sad when they are not available. Kot is an
-attempt to see if I can make a subset of the Kotlin language syntax be cross-compileable into C
+that I constantly use kotlin syntax and features and am sad when they are not available. Otli is an
+attempt to see if I can make a subset of the Otli language syntax be cross-compileable into C
 code.
 
 Will this work? we'll see. Probably not.
@@ -12,7 +12,7 @@ Will this work? we'll see. Probably not.
 ## Structure plans
 
 My current thinking is it would look something like this:
- - A preprocessor that throws errors if you use features of kotlin not supported by kot
+ - A preprocessor that throws errors if you use features of kotlin not supported by otli
  - A custom invocation of the compiler to compile to IR, but no further (if this is possible)
  - A compiler plugin to pick up from the IR and try to generate C
 

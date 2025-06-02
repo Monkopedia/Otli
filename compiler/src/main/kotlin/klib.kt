@@ -1,4 +1,4 @@
-package com.monkopedia.kot
+package com.monkopedia.otli
 
 import com.intellij.openapi.project.Project
 import java.io.File
@@ -68,49 +68,15 @@ val KotlinLibrary.isBuiltIns: Boolean
             .propertyList(KLIB_PROPERTY_DEPENDS, escapeInQuotes = true)
             .isEmpty()
 
-val KotlinLibrary.cOutputName: String?
-    get() = manifestProperties.getProperty(KLIB_PROPERTY_JS_OUTPUT_NAME)
-
-// fun generateKLib(
-//    depsDescriptors: ModulesStructure,
-//    outputKlibPath: String,
-//    nopack: Boolean,
-//    abiVersion: KotlinAbiVersion = KotlinAbiVersion.CURRENT,
-//    cOutputName: String?,
-//    icData: List<KotlinFileSerializedData>,
-//    moduleFragment: IrModuleFragment,
-//    diagnosticReporter: DiagnosticReporter,
-//    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.JS,
-//    wasmTarget: WasmTarget? = null,
-// ) {
-//    val configuration = depsDescriptors.compilerConfiguration
-//    val allDependencies = depsDescriptors.allDependencies
-//
-//    serializeModuleIntoKlib(
-//        configuration[CommonConfigurationKeys.MODULE_NAME]!!,
-//        configuration,
-//        diagnosticReporter,
-//        KlibMetadataIncrementalSerializer(depsDescriptors, moduleFragment),
-//        outputKlibPath,
-//        allDependencies,
-//        moduleFragment,
-//        icData,
-//        nopack,
-//        perFile = false,
-//        depsDescriptors.cFrontEndResult.hasErrors,
-//        abiVersion,
-//        cOutputName,
-//        builtInsPlatform,
-//        wasmTarget,
-//    )
-// }
+val KotlinLibrary.otliOutputName: String?
+    get() = manifestProperties.getProperty(KLIB_PROPERTY_OTLI_OUTPUT_NAME)
 
 data class IrModuleInfo(
     val module: IrModuleFragment,
     val allDependencies: List<IrModuleFragment>,
-    val bultins: IrBuiltIns,
+    val builtins: IrBuiltIns,
     val symbolTable: SymbolTable,
-    val deserializer: CIrLinker,
+    val deserializer: OtliIrLinker,
     val moduleFragmentToUniqueName: Map<IrModuleFragment, String>
 )
 
@@ -123,7 +89,7 @@ fun sortDependencies(
 
 fun deserializeDependencies(
     sortedDependencies: Collection<KotlinLibrary>,
-    irLinker: CIrLinker,
+    irLinker: OtliIrLinker,
     mainModuleLib: KotlinLibrary?,
     filesToLoad: Set<String>?,
     mapping: (KotlinLibrary) -> ModuleDescriptor
@@ -178,7 +144,7 @@ fun loadIr(
     val messageLogger = configuration.messageCollector
     val partialLinkageEnabled = configuration.partialLinkageConfig.isEnabled
 
-    val signaturer = IdSignatureDescriptor(CManglerDesc)
+    val signaturer = IdSignatureDescriptor(OtliManglerDesc)
     val symbolTable = SymbolTable(signaturer, irFactory)
 
     when (mainModule) {
@@ -247,7 +213,7 @@ fun getIrModuleInfoForKlib(
         IrBuiltInsOverDescriptors(moduleDescriptor.builtIns, typeTranslator, symbolTable)
 
     val irLinker =
-        CIrLinker(
+        OtliIrLinker(
             currentModule = null,
             messageCollector = messageCollector,
             builtIns = irBuiltIns,
@@ -307,7 +273,7 @@ fun getIrModuleInfoForSourceFiles(
 ): IrModuleInfo {
     val irBuiltIns = psi2IrContext.irBuiltIns
     val irLinker =
-        CIrLinker(
+        OtliIrLinker(
             currentModule = psi2IrContext.moduleDescriptor,
             messageCollector = messageCollector,
             builtIns = irBuiltIns,
@@ -341,8 +307,8 @@ fun getIrModuleInfoForSourceFiles(
             messageCollector
         )
 
-    if (configuration.getBoolean(JSConfigurationKeys.FAKE_OVERRIDE_VALIDATOR)) {
-        val fakeOverrideChecker = FakeOverrideChecker(CManglerIr, CManglerDesc)
+    if (configuration.getBoolean(OtliConfigurationKeys.FAKE_OVERRIDE_VALIDATOR)) {
+        val fakeOverrideChecker = FakeOverrideChecker(OtliManglerIr, OtliManglerDesc)
         irLinker.modules.forEach { fakeOverrideChecker.check(it) }
     }
 
@@ -445,7 +411,7 @@ class ModulesStructure(
         CommonKLibResolver.resolveWithoutDependencies(
             dependencies,
             compilerConfiguration.messageCollector.toLogger(),
-            compilerConfiguration.get(KotConfigurationKeys.ZIP_FILE_SYSTEM_ACCESSOR),
+            compilerConfiguration.get(OtliConfigurationKeys.ZIP_FILE_SYSTEM_ACCESSOR),
             duplicatedUniqueNameStrategy =
             compilerConfiguration.get(
                 KlibConfigurationKeys.DUPLICATED_UNIQUE_NAME_STRATEGY,
@@ -474,12 +440,12 @@ class ModulesStructure(
 
     private val builtInsDep = allDependencies.find { it.isBuiltIns }
 
-    class FrontEndResult(val kotAnalysisResult: AnalysisResult) {
+    class FrontEndResult(val otliAnalysisResult: AnalysisResult) {
         val moduleDescriptor: ModuleDescriptor
-            get() = kotAnalysisResult.moduleDescriptor
+            get() = otliAnalysisResult.moduleDescriptor
 
         val bindingContext: BindingContext
-            get() = kotAnalysisResult.bindingContext
+            get() = otliAnalysisResult.bindingContext
     }
 
     lateinit var frontEndResult: FrontEndResult
@@ -576,7 +542,7 @@ class ModulesStructure(
         }
 }
 
-const val KLIB_PROPERTY_JS_OUTPUT_NAME = "cOutputName"
+const val KLIB_PROPERTY_OTLI_OUTPUT_NAME = "otliOutputName"
 
 private fun Map<IrModuleFragment, KotlinLibrary>.getUniqueNameForEachFragment(): Map<
     IrModuleFragment,
@@ -584,5 +550,5 @@ private fun Map<IrModuleFragment, KotlinLibrary>.getUniqueNameForEachFragment():
     > =
     this.entries
         .mapNotNull { (moduleFragment, klib) ->
-            klib.cOutputName?.let { moduleFragment to it }
+            klib.otliOutputName?.let { moduleFragment to it }
         }.toMap()
