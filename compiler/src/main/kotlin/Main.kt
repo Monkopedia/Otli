@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
         "-ir-output-name",
         "test",
         testFile.absolutePath,
-        "-libraries=/home/jmonk/Downloads/kotlin-stdlib-js-2.1.21.klib"
+        "-libraries=compiler/klibs/kotlin-stdlib-js-2.1.21.klib"
     )
 //    compiler.exec(System.err, "-help")
     println("Donezo")

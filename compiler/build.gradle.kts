@@ -7,4 +7,5 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlin.compiler)
+    testImplementation(kotlin("test"))
 }

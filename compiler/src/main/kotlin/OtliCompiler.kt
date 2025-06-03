@@ -76,26 +76,42 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
             loadIr(module, IrFactoryImplForOtli()).module
     }
 
+    private class ExitCodeException(val code: ExitCode) : Exception("Return: $code")
+
     override fun doExecute(
         arguments: OtliCompilerArguments,
         configuration: CompilerConfiguration,
         rootDisposable: Disposable,
         paths: KotlinPaths?
     ): ExitCode {
+        try {
+            compileToIr(arguments, configuration, rootDisposable, paths)
+            return OK
+        } catch (t: ExitCodeException) {
+            return t.code
+        }
+    }
+
+    internal fun compileToIr(
+        arguments: OtliCompilerArguments,
+        configuration: CompilerConfiguration,
+        rootDisposable: Disposable,
+        paths: KotlinPaths?
+    ): IrModuleFragment {
         val messageCollector =
             configuration.getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY)
 
         val pluginLoadResult = loadPlugins(paths, arguments, configuration)
-        if (pluginLoadResult != OK) return pluginLoadResult
+        if (pluginLoadResult != OK) throw ExitCodeException(pluginLoadResult)
 
         if (arguments.script) {
             messageCollector.report(ERROR, "K/Otli does not support Kotlin script (*.kts) files")
-            return COMPILATION_ERROR
+            throw ExitCodeException(COMPILATION_ERROR)
         }
 
         if (arguments.freeArgs.isEmpty() && !(incrementalCompilationIsEnabledForJs(arguments))) {
             if (arguments.version) {
-                return OK
+                throw ExitCodeException(OK)
             }
             if (arguments.includes.isNullOrEmpty()) {
                 messageCollector.report(
@@ -103,7 +119,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
                     "Specify at least one source file or directory",
                     null
                 )
-                return COMPILATION_ERROR
+                throw ExitCodeException(COMPILATION_ERROR)
             }
         }
 
@@ -173,16 +189,16 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         val outputName = arguments.moduleName
         if (outputDirPath == null) {
             messageCollector.report(ERROR, "IR: Specify output dir via -ir-output-dir", null)
-            return COMPILATION_ERROR
+            throw ExitCodeException(COMPILATION_ERROR)
         }
 
         if (outputName == null) {
             messageCollector.report(ERROR, "IR: Specify output name via -ir-output-name", null)
-            return COMPILATION_ERROR
+            throw ExitCodeException(COMPILATION_ERROR)
         }
 
         if (messageCollector.hasErrors()) {
-            return COMPILATION_ERROR
+            throw ExitCodeException(COMPILATION_ERROR)
         }
 
         if (sourcesFiles.isEmpty() &&
@@ -190,7 +206,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
             arguments.includes.isNullOrEmpty()
         ) {
             messageCollector.report(ERROR, "No source files", null)
-            return COMPILATION_ERROR
+            throw ExitCodeException(COMPILATION_ERROR)
         }
 
         if (arguments.verbose) {
@@ -199,8 +215,6 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
 
         val moduleName = arguments.irModuleName ?: outputName
         configurationOtli.put(CommonConfigurationKeys.MODULE_NAME, moduleName)
-
-        val outputDir = File(outputDirPath)
 
         // Run analysis if main module is sources
         var sourceModule: ModulesStructure? = null
@@ -245,8 +259,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
                 "Executable production duration: ${System.currentTimeMillis() - start}ms"
             )
 
-            println("Trying to write output $outputDir")
-            outputs.accept(MyVisitor(), Unit)
+            return outputs
         } catch (e: CompilationException) {
             messageCollector.report(
                 ERROR,
@@ -258,10 +271,8 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
                     lineContent = e.content
                 )
             )
-            return INTERNAL_ERROR
+            throw ExitCodeException(INTERNAL_ERROR)
         }
-
-        return OK
     }
 
     private fun produceSourceModule(
@@ -320,7 +331,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         return moduleStructure
     }
 
-    override fun setupPlatformSpecificArgumentsAndServices(
+    public override fun setupPlatformSpecificArgumentsAndServices(
         configuration: CompilerConfiguration,
         arguments: OtliCompilerArguments,
         services: Services
@@ -349,7 +360,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
 
     override fun executableScriptFileName(): String = "otlic"
 
-    override fun createMetadataVersion(versionArray: IntArray): BinaryVersion =
+    public override fun createMetadataVersion(versionArray: IntArray): BinaryVersion =
         KlibMetadataVersion(*versionArray)
 
     override fun MutableList<String>.addPlatformOptions(arguments: OtliCompilerArguments) {}
