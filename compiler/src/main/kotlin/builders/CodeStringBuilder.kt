@@ -18,6 +18,17 @@ package com.monkopedia.otli.builders
 class CodeStringBuilder {
     private var indent = 0
     private val strBuilder = StringBuilder()
+    private val files = mutableMapOf<String, CodeStringBuilder>()
+
+    fun allFiles(): Map<String, String> = files.mapValues { it.value.build() } +
+        files.values.map { it.allFiles() }.fold(emptyMap(), Map<String, String>::plus)
+
+    fun file(name: String, builder: CodeStringBuilder.() -> Unit) {
+        require(name !in files) {
+            "Repeated file name $name"
+        }
+        files[name] = CodeStringBuilder().apply(builder)
+    }
 
     fun startBlock() {
         indent++
@@ -74,5 +85,5 @@ class CodeStringBuilder {
     fun build(): String = strBuilder.toString()
 }
 
-inline fun buildCode(build: CodeStringBuilder.() -> Unit): String =
-    CodeStringBuilder().apply(build).build()
+inline fun buildCode(build: CodeStringBuilder.() -> Unit): CodeStringBuilder =
+    CodeStringBuilder().apply(build)

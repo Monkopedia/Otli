@@ -75,14 +75,20 @@ class CodeBuilderBase<T : LangFactory>(
         symbolList.add(symbol)
     }
 
-    override fun toString(): String = buildCode {
-        for (symbol in symbolList) {
-            symbol.build(this)
-            if (addSemis && !symbol.blockSemi) {
-                append(';')
+    override fun toString(): String = builder().build()
+
+    private fun builder(): CodeStringBuilder = buildCode {
+            for (symbol in symbolList) {
+                symbol.build(this)
+                if (addSemis && !symbol.blockSemi) {
+                    append(';')
+                }
+                append('\n')
             }
-            append('\n')
         }
+
+    fun files(): Map<String, String> {
+        return builder().allFiles()
     }
 
     fun pushScope() {

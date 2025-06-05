@@ -15,14 +15,9 @@
  */
 package com.monkopedia.otli.builders
 
-
 typealias CCodeBuilder = CodeBuilder<CFactory>
 
-fun CCodeBuilder(): CCodeBuilder =
-    CodeBuilderBase(
-        CFactory(),
-        addSemis = true
-    )
+fun CCodeBuilder(): CodeBuilderBase<CFactory> = CodeBuilderBase(CFactory(), addSemis = true)
 
 class CFactory : LangFactory {
     override fun define(
@@ -30,7 +25,7 @@ class CFactory : LangFactory {
         type: ResolvedType,
         initializer: Symbol?,
         constructorArgs: List<Symbol>?
-    ): LocalVar = CppLocalVar(name, type, initializer, constructorArgs)
+    ): LocalVar = CLocalVar(name, type, initializer, constructorArgs)
 
     override fun funSig(name: String, retType: Symbol?, args: List<LocalVar>): Symbol =
         CFunctionSignature(name, retType ?: CType("void"), args)
@@ -58,7 +53,7 @@ class CFunctionSignature(
     }
 }
 
-class CppLocalVar(
+class CLocalVar(
     override val name: String,
     val type: ResolvedType,
     private val initializer: Symbol?,
@@ -120,8 +115,7 @@ inline fun CCodeBuilder.ifndef(condition: String, builder: CCodeBuilder.() -> Un
     builder
 )
 
-class PreprocessorSymbol(private val target: String) :
-    Symbol {
+class PreprocessorSymbol(private val target: String) : Symbol {
     override val blockSemi: Boolean
         get() = true
 
@@ -129,4 +123,3 @@ class PreprocessorSymbol(private val target: String) :
         builder.append("#$target")
     }
 }
-

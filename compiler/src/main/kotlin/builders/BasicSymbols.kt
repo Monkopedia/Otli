@@ -61,6 +61,19 @@ class Address(private val arg: Symbol) :
     }
 }
 
+class Parens(private val arg: Symbol) :
+    Symbol,
+    SymbolContainer {
+    override val symbols: List<Symbol>
+        get() = listOf(arg)
+
+    override fun build(builder: CodeStringBuilder) {
+        builder.append("(")
+        arg.build(builder)
+        builder.append(")")
+    }
+}
+
 inline val LocalVar.addressOf: Symbol
     get() = Address(reference)
 
@@ -85,10 +98,8 @@ class Return(private val s: Symbol) :
     }
 }
 
-class Call(
-    private val name: Symbol,
-    private vararg val args: Symbol
-) : Symbol,
+class Call(private val name: Symbol, private vararg val args: Symbol) :
+    Symbol,
     SymbolContainer {
     override val symbols: List<Symbol>
         get() = listOf(name) + args

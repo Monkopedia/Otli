@@ -2,9 +2,12 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 [versions]
 kotlin = "2.1.21"
+serialization = "1.8.1"
 
 [libraries]
 kotlin-compiler = { module = "org.jetbrains.kotlin:kotlin-compiler", version.ref = "kotlin" }
+kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
