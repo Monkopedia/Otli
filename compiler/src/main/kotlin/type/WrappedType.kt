@@ -20,10 +20,11 @@ package com.monkopedia.otli.type
 private val existingTypes = mutableMapOf<String, WrappedType>()
 
 abstract class WrappedType {
-    abstract val cType: WrappedType
+//    abstract val cType: WrappedType
 
     open fun clone(): WrappedType = this
 
+    abstract val coreType: String
     abstract val isNative: Boolean
     abstract val isReturnable: Boolean
     abstract val isVoid: Boolean
@@ -80,3 +81,6 @@ abstract class WrappedType {
             get() = WrappedTypeReference("unresolveable")
     }
 }
+
+val WrappedType.isString: Boolean
+    get() = isPointer && (coreType == "char" || coreType == "unsigned char")

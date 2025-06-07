@@ -8,11 +8,9 @@ import com.monkopedia.otli.builders.LangFactory
 import com.monkopedia.otli.builders.LocalVar
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.Reference
-import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Return
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.block
-import com.monkopedia.otli.builders.define
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -118,7 +116,11 @@ class CodegenVisitor<T : LangFactory> : IrVisitor<Symbol, CodeBuilder<T>>() {
         visitDeclaration(declaration, data)
 
     override fun visitClass(declaration: IrClass, data: CodeBuilder<T>): Symbol =
-        visitDeclaration(declaration, data)
+        if (declaration.isData) {
+            buildStruct(declaration, data)
+        } else {
+            visitDeclaration(declaration, data)
+        }
 
     override fun visitAnonymousInitializer(
         declaration: IrAnonymousInitializer,
@@ -155,14 +157,9 @@ class CodegenVisitor<T : LangFactory> : IrVisitor<Symbol, CodeBuilder<T>>() {
             symbolList.addAll(declaration.files.map { it.accept(this@CodegenVisitor, data) })
         }
 
-    override fun visitProperty(declaration: IrProperty, data: CodeBuilder<T>): Symbol = data.define(
-        declaration.name.asString(),
-        ResolvedType(
-            declaration.backingField?.type ?: error("Properties must have backing fields")
-        ),
-        initializer = declaration.backingField?.initializer?.accept(this@CodegenVisitor, data)
-    ).also {
-        declarationLookup[declaration] = it
+    override fun visitProperty(declaration: IrProperty, data: CodeBuilder<T>): Symbol {
+        val initializer = declaration.backingField?.initializer?.accept(this@CodegenVisitor, data)
+        return buildProperty(declaration, data, initializer)
     }
 
     override fun visitScript(declaration: IrScript, data: CodeBuilder<T>): Symbol =
@@ -451,3 +448,4 @@ class CodegenVisitor<T : LangFactory> : IrVisitor<Symbol, CodeBuilder<T>>() {
     override fun visitElseBranch(branch: IrElseBranch, data: CodeBuilder<T>): Symbol =
         visitBranch(branch, data)
 }
+

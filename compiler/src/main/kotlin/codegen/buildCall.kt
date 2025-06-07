@@ -9,9 +9,13 @@ import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.op
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
@@ -20,21 +24,42 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
     data: CodeBuilder<T>
 ): Symbol {
     val owner = expression.symbol.owner
-    if (owner.isOperator) {
-        when (owner.name.asString()) {
-            "plus" -> return operatorSymbol(expression, data, "+")
-            "minus" -> return operatorSymbol(expression, data, "-")
-            "times" -> return operatorSymbol(expression, data, "*")
-            "div" -> return operatorSymbol(expression, data, "/")
+    return buildCall(
+        owner.name.asString(),
+        expression.arguments,
+        data,
+        owner.returnType,
+        owner.getPackageFragment().packageFqName.asString(),
+        owner.isOperator,
+        owner.isPropertyAccessor,
+        expression.extensionReceiver ?: expression.dispatchReceiver,
+        owner.correspondingPropertySymbol?.owner
+    )
+}
 
-            else -> {
-                error("Unsupported operator: ${owner.name.asString()}")
-            }
+fun <T : LangFactory> CodegenVisitor<T>.buildCall(
+    name: String,
+    arguments: List<IrExpression?>,
+    data: CodeBuilder<T>,
+    returnType: IrType? = null,
+    pkg: String = "",
+    isOperator: Boolean = false,
+    isPropertyAccessor: Boolean = false,
+    receiver: IrExpression? = null,
+    correspondingProperty: IrProperty? = null
+): Symbol {
+    if (isOperator) {
+        return when (name) {
+            "plus" -> operatorSymbol(arguments, data, "+")
+            "minus" -> operatorSymbol(arguments, data, "-")
+            "times" -> operatorSymbol(arguments, data, "*")
+            "div" -> operatorSymbol(arguments, data, "/")
+
+            else -> error("Unsupported operator: $name")
         }
     }
-    val pkg = owner.parent.getPackageFragment()?.packageFqName?.asString()
-    if (pkg?.startsWith("kotlin") == true) {
-        when (owner.name.asString()) {
+    if (pkg.startsWith("kotlin")) {
+        return when (name) {
             "toByte",
             "toShort",
             "toInt",
@@ -42,41 +67,49 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
             "toUByte",
             "toUShort",
             "toUInt",
-            "toULong" -> return RawCast(
-                ResolvedType(owner.returnType).toString(),
-                (expression.extensionReceiver ?: expression.dispatchReceiver)?.accept(this, data)
+            "toULong" -> RawCast(
+                ResolvedType(returnType ?: error("stdlib method missing return")).toString(),
+                receiver?.accept(this, data)
                     ?: error("Missing receiver")
             )
 
-            else -> error("Unhandled stdlib method $pkg.${owner.name.asString()}")
+            "println" -> Call(
+                "printf",
+                *convertArgs(
+                    arguments.singleOrNull() as? IrStringConcatenation
+                        ?: error("Wrong argument"),
+                    data
+                )
+            )
+
+            else -> error("Unhandled stdlib method $pkg.$name")
         }
     }
-    if (owner.isPropertyAccessor) {
-        val symbol = owner.correspondingPropertySymbol
-            ?.owner?.let { declarationLookup[it] }
-            ?: error("Cannot find declaration for ${owner.correspondingPropertySymbol}")
+    if (isPropertyAccessor) {
+        val symbol = correspondingProperty?.let { declarationLookup[it] }
+            ?: error("Cannot find declaration for $correspondingProperty")
         return Reference(symbol)
     }
     return Call(
-        owner.name.asString(),
-        *expression.arguments.map { it?.accept(this, data) ?: error("Missing argument") }
+        name,
+        *arguments.map { it?.accept(this, data) ?: error("Missing argument") }
             .toTypedArray()
     )
 }
 
 private fun <T : LangFactory> CodegenVisitor<T>.operatorSymbol(
-    expression: IrCall,
+    arguments: List<IrExpression?>,
     data: CodeBuilder<T>,
     operand: String
 ): Symbol {
-    expression.arguments.takeIf { it.size == 2 }?.takeIf {
+    arguments.takeIf { it.size == 2 }?.takeIf {
         val type1 = ResolvedType(it[0]?.type ?: return@takeIf false)
         val type2 = ResolvedType(it[1]?.type ?: return@takeIf false)
         type1.isNative && type2.isNative
-    } ?: error("Can't handle ${expression.arguments}")
-    val symbol1 = expression.arguments[0]?.accept(this, data)
+    } ?: error("Can't handle $arguments")
+    val symbol1 = arguments[0]?.accept(this, data)
         ?: error("Lost child during resolution")
-    val symbol2 = expression.arguments[1]?.accept(this, data)
+    val symbol2 = arguments[1]?.accept(this, data)
         ?: error("Lost child during resolution")
     return Parens(symbol1.op(operand, symbol2))
 }

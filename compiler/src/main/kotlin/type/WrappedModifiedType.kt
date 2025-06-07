@@ -15,29 +15,33 @@
  */
 package com.monkopedia.otli.type
 
-class WrappedModifiedType(val baseType: WrappedType, val modifier: String) : WrappedType() {
+abstract class WrappedWrapper(val baseType: WrappedType) : WrappedType()
+
+class WrappedModifiedType(baseType: WrappedType, val modifier: String) : WrappedWrapper(baseType) {
     override val isReturnable: Boolean
         get() = modifier == "*" || modifier == "&" || baseType.isReturnable
-    override val cType: WrappedType
-        get() =
-            when (modifier) {
-                "*",
-                "&"
-                ->
-                    pointerTo(
-                        if (baseType.isNative || (baseType == LONG_DOUBLE)) {
-                            baseType.cType
-                        } else {
-                            VOID
-                        }
-                    )
-
-                "[]" -> arrayOf(baseType.cType)
-                else -> error("Don't know how to handle $modifier")
-            }
+//    override val cType: WrappedType
+//        get() =
+//            when (modifier) {
+//                "*",
+//                "&"
+//                ->
+//                    pointerTo(
+//                        if (baseType.isNative || (baseType == LONG_DOUBLE)) {
+//                            baseType.cType
+//                        } else {
+//                            VOID
+//                        }
+//                    )
+//
+//                "[]" -> arrayOf(baseType.cType)
+//                else -> error("Don't know how to handle $modifier")
+//            }
 
     override val isNative: Boolean
         get() = baseType.isNative
+    override val coreType: String
+        get() = baseType.coreType
 
     override val isVoid: Boolean
         get() = false
@@ -63,17 +67,19 @@ class WrappedModifiedType(val baseType: WrappedType, val modifier: String) : Wra
     override fun toString(): String = "${baseType}$modifier"
 }
 
-class WrappedPrefixedType(val baseType: WrappedType, val modifier: String) : WrappedType() {
+class WrappedPrefixedType(baseType: WrappedType, val modifier: String) : WrappedWrapper(baseType) {
     override val isReturnable: Boolean
         get() = baseType.isReturnable
-    override val cType: WrappedType
-        get() = when (modifier) {
-            "const" -> const(baseType.cType)
-            else -> error("Don't know how to handle $modifier")
-        }
+//    override val cType: WrappedType
+//        get() = when (modifier) {
+//            "const" -> const(baseType.cType)
+//            else -> error("Don't know how to handle $modifier")
+//        }
 
     override val isNative: Boolean
         get() = baseType.isNative
+    override val coreType: String
+        get() = baseType.coreType
 
     override val isVoid: Boolean
         get() = false

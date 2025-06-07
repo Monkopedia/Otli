@@ -65,6 +65,8 @@ data class WrappedTypeReference(val name: String) : WrappedType() {
             if (openIndex + 1 == closeIndex) return -1
             return name.substring(openIndex + 1, closeIndex).toInt()
         }
+    override val coreType: String
+        get() = name
     val arrayType: WrappedTypeReference
         get() {
             require(isArray) {
@@ -95,16 +97,16 @@ data class WrappedTypeReference(val name: String) : WrappedType() {
         get() = name in NATIVE || name == LONG_DOUBLE_STR
     override val isVoid: Boolean
         get() = name == "void"
-    override val cType: WrappedType
-        get() {
-            if (isNative) {
-                return this
-            }
-            if (name == LONG_DOUBLE_STR) {
-                return WrappedType.Companion("double")
-            }
-            return pointerTo(VOID)
-        }
+//    override val cType: WrappedType
+//        get() {
+//            if (isNative) {
+//                return this
+//            }
+//            if (name == LONG_DOUBLE_STR) {
+//                return WrappedType.Companion("double")
+//            }
+//            return pointerTo(VOID)
+//        }
 
     override fun toString(): String = name
 }
