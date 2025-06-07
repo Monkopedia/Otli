@@ -14,6 +14,7 @@ fun copyOtliCompilerArguments(
     to.libraries = from.libraries
     to.moduleName = from.moduleName
     to.outputDir = from.outputDir
+    to.outputKlib = from.outputKlib
 
     return to
 }

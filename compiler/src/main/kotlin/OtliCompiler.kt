@@ -72,8 +72,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
 
     private class OtliIrTransformer(val module: ModulesStructure) {
 
-        fun compileAndTransformIrNew(): IrModuleFragment =
-            loadIr(module, IrFactoryImplForOtli()).module
+        fun compileAndTransformIrNew(): IrModuleInfo = loadIr(module, IrFactoryImplForOtli())
     }
 
     private class ExitCodeException(val code: ExitCode) : Exception("Return: $code")
@@ -258,8 +257,25 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
                 INFO,
                 "Executable production duration: ${System.currentTimeMillis() - start}ms"
             )
+            if (arguments.outputKlib) {
+                val diagnosticsReporter =
+                    DiagnosticReporterFactory.createPendingReporter(messageCollector)
+                if (!File(outputDirPath).exists()) {
+                    File(outputDirPath).mkdirs()
+                }
+                generateKLib(
+                    sourceModule ?: error(""),
+                    outputDirPath.plus("/$moduleName.klib"),
+                    nopack = false,
+                    jsOutputName = null,
+                    icData = emptyList(),
+                    moduleFragment = outputs.module,
+                    irBuiltIns = outputs.builtins,
+                    diagnosticReporter = diagnosticsReporter
+                )
+            }
 
-            return outputs
+            return outputs.module
         } catch (e: CompilationException) {
             messageCollector.report(
                 ERROR,

@@ -92,6 +92,16 @@ class OtliCompilerArguments : CommonKlibBasedCompilerArguments() {
             field = if (value.isNullOrEmpty()) null else value
         }
 
+    @Argument(
+        value = "-output-klib",
+        description = "Write out a klib file."
+    )
+    var outputKlib = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
     override fun configureAnalysisFlags(
         collector: MessageCollector,
         languageVersion: LanguageVersion

@@ -19,6 +19,7 @@ fun main(args: Array<String>) {
         "/usr/share/kotlin",
         "-ir-output-dir",
         "ir",
+        "-output-klib",
         "-ir-output-name",
         "test",
         testFile.absolutePath,

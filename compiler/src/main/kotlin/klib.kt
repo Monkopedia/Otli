@@ -1,7 +1,12 @@
 package com.monkopedia.otli
 
 import com.intellij.openapi.project.Project
+import com.monkopedia.otli.serialization.KlibMetadataIncrementalSerializer
+import com.monkopedia.otli.serialization.OtliIrFileMetadata
+import com.monkopedia.otli.serialization.OtliIrModuleSerializer
 import java.io.File
+import java.util.Properties
+import kotlin.to
 import org.jetbrains.kotlin.analyzer.AbstractAnalyzerWithCompilerReport
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
@@ -12,8 +17,13 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContextImpl
 import org.jetbrains.kotlin.backend.common.linkage.issues.checkNoUnboundSymbols
 import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLinker
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideChecker
+import org.jetbrains.kotlin.backend.common.serialization.CompatibilityMode
 import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
+import org.jetbrains.kotlin.backend.common.serialization.IrSerializationSettings
+import org.jetbrains.kotlin.backend.common.serialization.KotlinFileSerializedData
 import org.jetbrains.kotlin.backend.common.serialization.metadata.DynamicTypeDeserializer
+import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibSingleFileMetadataSerializer
+import org.jetbrains.kotlin.backend.common.serialization.serializeModuleIntoKlib
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureDescriptor
 import org.jetbrains.kotlin.backend.common.toLogger
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
@@ -22,11 +32,13 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.DuplicatedUniqueNameStrategy
 import org.jetbrains.kotlin.config.KlibConfigurationKeys
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.messageCollector
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
@@ -40,11 +52,17 @@ import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.js.analyze.AbstractTopDownAnalyzerFacadeForWeb
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.konan.properties.propertyList
+import org.jetbrains.kotlin.library.KLIB_PROPERTY_CONTAINS_ERROR_CODE
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_DEPENDS
+import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.KotlinLibrary
+import org.jetbrains.kotlin.library.KotlinLibraryVersioning
+import org.jetbrains.kotlin.library.SerializedIrFile
+import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
+import org.jetbrains.kotlin.library.impl.buildKotlinLibrary
 import org.jetbrains.kotlin.library.metadata.KlibMetadataFactories
+import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.library.unresolvedDependencies
 import org.jetbrains.kotlin.progress.ProgressIndicatorAndCompilationCanceledStatus
@@ -95,6 +113,7 @@ fun deserializeDependencies(
     mapping: (KotlinLibrary) -> ModuleDescriptor
 ): Map<IrModuleFragment, KotlinLibrary> = sortedDependencies.associateBy { klib ->
     val descriptor = mapping(klib)
+    println("Deserializing $descriptor $klib")
     when {
         mainModuleLib == null ->
             irLinker.deserializeIrModuleHeader(
@@ -552,3 +571,145 @@ private fun Map<IrModuleFragment, KotlinLibrary>.getUniqueNameForEachFragment():
         .mapNotNull { (moduleFragment, klib) ->
             klib.otliOutputName?.let { moduleFragment to it }
         }.toMap()
+
+fun generateKLib(
+    depsDescriptors: ModulesStructure,
+    outputKlibPath: String,
+    nopack: Boolean,
+    abiVersion: KotlinAbiVersion = KotlinAbiVersion.CURRENT,
+    jsOutputName: String?,
+    icData: List<KotlinFileSerializedData>,
+    moduleFragment: IrModuleFragment,
+    irBuiltIns: IrBuiltIns,
+    diagnosticReporter: DiagnosticReporter,
+    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.COMMON,
+) {
+    val configuration = depsDescriptors.compilerConfiguration
+    val allDependencies = depsDescriptors.allDependencies
+
+    serializeModuleIntoKlib(
+        configuration[CommonConfigurationKeys.MODULE_NAME]!!,
+        configuration,
+        diagnosticReporter,
+        KlibMetadataIncrementalSerializer(depsDescriptors, moduleFragment),
+        outputKlibPath,
+        allDependencies,
+        moduleFragment,
+        irBuiltIns,
+        icData,
+        nopack,
+        perFile = false,
+        false,
+        abiVersion,
+        jsOutputName,
+        builtInsPlatform,
+    )
+}
+
+fun serializeModuleIntoKlib(
+    moduleName: String,
+    configuration: CompilerConfiguration,
+    diagnosticReporter: DiagnosticReporter,
+    metadataSerializer: KlibSingleFileMetadataSerializer<*>,
+    klibPath: String,
+    dependencies: List<KotlinLibrary>,
+    moduleFragment: IrModuleFragment,
+    irBuiltIns: IrBuiltIns,
+    cleanFiles: List<KotlinFileSerializedData>,
+    nopack: Boolean,
+    perFile: Boolean,
+    containsErrorCode: Boolean = false,
+    abiVersion: KotlinAbiVersion,
+    otliOutputName: String?,
+    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.COMMON,
+) {
+//    val incrementalResultsConsumer = configuration.get(JSConfigurationKeys.INCREMENTAL_RESULTS_CONSUMER)
+//    val empty = ByteArray(0)
+    val serializerOutput = serializeModuleIntoKlib(
+        moduleName = moduleFragment.name.asString(),
+        irModuleFragment = moduleFragment,
+        irBuiltins = irBuiltIns,
+        configuration = configuration,
+        diagnosticReporter = diagnosticReporter,
+        compatibilityMode = CompatibilityMode(abiVersion),
+        cleanFiles = cleanFiles,
+        dependencies = dependencies,
+        createModuleSerializer = {
+                irDiagnosticReporter,
+                irBuiltins,
+                compatibilityMode,
+                normalizeAbsolutePaths,
+                sourceBaseDirs,
+                languageVersionSettings,
+                shouldCheckSignaturesOnUniqueness,
+            ->
+            OtliIrModuleSerializer(
+                settings = IrSerializationSettings(
+                    languageVersionSettings = languageVersionSettings,
+                    compatibilityMode = compatibilityMode,
+                    normalizeAbsolutePaths = normalizeAbsolutePaths,
+                    sourceBaseDirs = sourceBaseDirs,
+                    shouldCheckSignaturesOnUniqueness = shouldCheckSignaturesOnUniqueness,
+                ),
+                irDiagnosticReporter,
+                irBuiltins,
+            ) { OtliIrFileMetadata(emptyList()) }
+        },
+        metadataSerializer = metadataSerializer,
+        processCompiledFileData = { ioFile, compiledFile ->
+//            incrementalResultsConsumer?.run {
+//                processPackagePart(ioFile, compiledFile.metadata, empty, empty)
+//                with(compiledFile.irData!!) {
+//                    processIrFile(
+//                        ioFile,
+//                        fileData,
+//                        types,
+//                        signatures,
+//                        strings,
+//                        declarations,
+//                        bodies,
+//                        fqName.toByteArray(),
+//                        fileMetadata,
+//                        debugInfo,
+//                    )
+//                }
+//            }
+        },
+        processKlibHeader = {
+//            incrementalResultsConsumer?.processHeader(it)
+        },
+    )
+
+    val fullSerializedIr = serializerOutput.serializedIr ?: error("Metadata-only KLIBs are not supported in Kotlin/Otli")
+
+    val versions = KotlinLibraryVersioning(
+        abiVersion = abiVersion,
+        compilerVersion = KotlinCompilerVersion.VERSION,
+        metadataVersion = KlibMetadataVersion.INSTANCE.toString(),
+    )
+
+    val properties = Properties().also { p ->
+        if (otliOutputName != null) {
+            p.setProperty(KLIB_PROPERTY_OTLI_OUTPUT_NAME, otliOutputName)
+        }
+        if (containsErrorCode) {
+            p.setProperty(KLIB_PROPERTY_CONTAINS_ERROR_CODE, "true")
+        }
+    }
+
+    buildKotlinLibrary(
+        linkDependencies = serializerOutput.neededLibraries,
+        ir = fullSerializedIr,
+        metadata = serializerOutput.serializedMetadata ?: error("expected serialized metadata"),
+        manifestProperties = properties,
+        moduleName = moduleName,
+        nopack = nopack,
+        perFile = perFile,
+        output = klibPath,
+        versions = versions,
+        builtInsPlatform = builtInsPlatform
+    )
+}
+
+internal val SerializedIrFile.fileMetadata: ByteArray
+    get() = backendSpecificMetadata ?: error("Expect file caches to have backendSpecificMetadata, but '$path' doesn't")
