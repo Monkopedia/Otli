@@ -6,6 +6,8 @@ fun main(args: Array<String>) {
     val compiler = OtliCompiler()
     println("Hello there")
     val testFile = File("test.kt")
+    val c: Char = 'c'
+    c.code
     testFile.writeText(
         """
         val x = 2
@@ -23,7 +25,7 @@ fun main(args: Array<String>) {
         "-ir-output-name",
         "test",
         testFile.absolutePath,
-        "-libraries=compiler/klibs/kotlin-stdlib-js-2.1.21.klib"
+        "-libraries=stdlib/build/stdlib.klib"
     )
 //    compiler.exec(System.err, "-help")
     println("Donezo")

@@ -313,6 +313,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         do {
             val analyzerFacade = TopDownAnalyzerFacadeForJSIR
             moduleStructure.runAnalysis(
+                messageCollector,
                 AnalyzerWithCompilerReport(environmentForOtli.configuration),
                 analyzerFacade = analyzerFacade
             )

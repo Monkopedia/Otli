@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.backend.common.linkage.issues.checkNoUnboundSymbols
 import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLinker
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideChecker
 import org.jetbrains.kotlin.backend.common.serialization.CompatibilityMode
+import org.jetbrains.kotlin.backend.common.serialization.DescriptorByIdSignatureFinderImpl
 import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
 import org.jetbrains.kotlin.backend.common.serialization.IrSerializationSettings
 import org.jetbrains.kotlin.backend.common.serialization.KotlinFileSerializedData
@@ -70,6 +71,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.psi2ir.descriptors.IrBuiltInsOverDescriptors
+import org.jetbrains.kotlin.psi2ir.generators.DeclarationStubGeneratorImpl
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
 import org.jetbrains.kotlin.psi2ir.generators.TypeTranslatorImpl
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -291,6 +293,12 @@ fun getIrModuleInfoForSourceFiles(
     mapping: (KotlinLibrary) -> ModuleDescriptor
 ): IrModuleInfo {
     val irBuiltIns = psi2IrContext.irBuiltIns
+    val stubGenerator = DeclarationStubGeneratorImpl(
+        psi2IrContext.moduleDescriptor,
+        symbolTable,
+        psi2IrContext.irBuiltIns,
+        DescriptorByIdSignatureFinderImpl(psi2IrContext.moduleDescriptor, OtliManglerDesc)
+    )
     val irLinker =
         OtliIrLinker(
             currentModule = psi2IrContext.moduleDescriptor,
@@ -304,7 +312,8 @@ fun getIrModuleInfoForSourceFiles(
                 messageCollector = messageCollector
             ),
             icData = null,
-            friendModules = friendModules
+            friendModules = friendModules,
+            stubGenerator = stubGenerator
         )
     val deserializedModuleFragmentsToLib =
         deserializeDependencies(allSortedDependencies, irLinker, null, null, mapping)
@@ -323,7 +332,8 @@ fun getIrModuleInfoForSourceFiles(
             project,
             files,
             irLinker,
-            messageCollector
+            messageCollector,
+            stubGenerator
         )
 
     if (configuration.getBoolean(OtliConfigurationKeys.FAKE_OVERRIDE_VALIDATOR)) {
@@ -508,7 +518,7 @@ class ModulesStructure(
                 runtimeModule?.builtIns,
                 // TODO: This is a speed optimization used by Native. Don't bother for now.
                 packageAccessHandler = null,
-                lookupTracker = lookupTracker
+                lookupTracker = LookupTracker.DO_NOTHING
             )
         if (isBuiltIns) runtimeModule = md
 
@@ -518,12 +528,14 @@ class ModulesStructure(
     }
 
     fun runAnalysis(
+        messageCollector: MessageCollector,
         analyzer: AbstractAnalyzerWithCompilerReport,
         analyzerFacade: AbstractTopDownAnalyzerFacadeForWeb
     ) {
         require(mainModule is MainModule.SourceFiles)
         val files = mainModule.files
 
+        println("$builtInModuleDescriptor")
         analyzer.analyzeAndReport(files) {
             analyzerFacade.analyzeFiles(
                 files,
@@ -582,7 +594,7 @@ fun generateKLib(
     moduleFragment: IrModuleFragment,
     irBuiltIns: IrBuiltIns,
     diagnosticReporter: DiagnosticReporter,
-    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.COMMON,
+    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.JS
 ) {
     val configuration = depsDescriptors.compilerConfiguration
     val allDependencies = depsDescriptors.allDependencies
@@ -602,7 +614,7 @@ fun generateKLib(
         false,
         abiVersion,
         jsOutputName,
-        builtInsPlatform,
+        builtInsPlatform
     )
 }
 
@@ -621,7 +633,7 @@ fun serializeModuleIntoKlib(
     containsErrorCode: Boolean = false,
     abiVersion: KotlinAbiVersion,
     otliOutputName: String?,
-    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.COMMON,
+    builtInsPlatform: BuiltInsPlatform = BuiltInsPlatform.COMMON
 ) {
 //    val incrementalResultsConsumer = configuration.get(JSConfigurationKeys.INCREMENTAL_RESULTS_CONSUMER)
 //    val empty = ByteArray(0)
@@ -641,7 +653,7 @@ fun serializeModuleIntoKlib(
                 normalizeAbsolutePaths,
                 sourceBaseDirs,
                 languageVersionSettings,
-                shouldCheckSignaturesOnUniqueness,
+                shouldCheckSignaturesOnUniqueness
             ->
             OtliIrModuleSerializer(
                 settings = IrSerializationSettings(
@@ -649,10 +661,10 @@ fun serializeModuleIntoKlib(
                     compatibilityMode = compatibilityMode,
                     normalizeAbsolutePaths = normalizeAbsolutePaths,
                     sourceBaseDirs = sourceBaseDirs,
-                    shouldCheckSignaturesOnUniqueness = shouldCheckSignaturesOnUniqueness,
+                    shouldCheckSignaturesOnUniqueness = shouldCheckSignaturesOnUniqueness
                 ),
                 irDiagnosticReporter,
-                irBuiltins,
+                irBuiltins
             ) { OtliIrFileMetadata(emptyList()) }
         },
         metadataSerializer = metadataSerializer,
@@ -677,15 +689,16 @@ fun serializeModuleIntoKlib(
         },
         processKlibHeader = {
 //            incrementalResultsConsumer?.processHeader(it)
-        },
+        }
     )
 
-    val fullSerializedIr = serializerOutput.serializedIr ?: error("Metadata-only KLIBs are not supported in Kotlin/Otli")
+    val fullSerializedIr = serializerOutput.serializedIr
+        ?: error("Metadata-only KLIBs are not supported in Kotlin/Otli")
 
     val versions = KotlinLibraryVersioning(
         abiVersion = abiVersion,
         compilerVersion = KotlinCompilerVersion.VERSION,
-        metadataVersion = KlibMetadataVersion.INSTANCE.toString(),
+        metadataVersion = KlibMetadataVersion.INSTANCE.toString()
     )
 
     val properties = Properties().also { p ->
@@ -712,4 +725,5 @@ fun serializeModuleIntoKlib(
 }
 
 internal val SerializedIrFile.fileMetadata: ByteArray
-    get() = backendSpecificMetadata ?: error("Expect file caches to have backendSpecificMetadata, but '$path' doesn't")
+    get() = backendSpecificMetadata
+        ?: error("Expect file caches to have backendSpecificMetadata, but '$path' doesn't")

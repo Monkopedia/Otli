@@ -3,6 +3,7 @@
 [versions]
 kotlin = "2.1.21"
 serialization = "1.8.1"
+shadow = "8.3.6"
 
 [libraries]
 kotlin-compiler = { module = "org.jetbrains.kotlin:kotlin-compiler", version.ref = "kotlin" }
@@ -11,3 +12,4 @@ kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}
