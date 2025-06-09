@@ -22,7 +22,7 @@ fun OtliCompiler.compileCode(code: String): IrModuleFragment? {
     arguments.kotlinHome = "/usr/share/kotlin"
     arguments.outputDir = "ir"
     arguments.moduleName = "test_module"
-    arguments.libraries = "../stdlib/build/stdlib.klib"
+    arguments.libraries = "../otli-stdlib/build/otli-stdlib.klib"
     arguments.freeArgs = listOf(file.absolutePathString())
 
     val messageCollector = PrintingMessageCollector(

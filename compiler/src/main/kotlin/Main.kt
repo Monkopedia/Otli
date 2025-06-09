@@ -25,7 +25,7 @@ fun main(args: Array<String>) {
         "-ir-output-name",
         "test",
         testFile.absolutePath,
-        "-libraries=stdlib/build/stdlib.klib"
+        "-libraries=otli-stdlib/build/otli-stdlib.klib"
     )
 //    compiler.exec(System.err, "-help")
     println("Donezo")
