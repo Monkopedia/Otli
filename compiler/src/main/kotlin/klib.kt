@@ -115,7 +115,6 @@ fun deserializeDependencies(
     mapping: (KotlinLibrary) -> ModuleDescriptor
 ): Map<IrModuleFragment, KotlinLibrary> = sortedDependencies.associateBy { klib ->
     val descriptor = mapping(klib)
-    println("Deserializing $descriptor $klib")
     when {
         mainModuleLib == null ->
             irLinker.deserializeIrModuleHeader(
@@ -528,14 +527,12 @@ class ModulesStructure(
     }
 
     fun runAnalysis(
-        messageCollector: MessageCollector,
         analyzer: AbstractAnalyzerWithCompilerReport,
         analyzerFacade: AbstractTopDownAnalyzerFacadeForWeb
     ) {
         require(mainModule is MainModule.SourceFiles)
         val files = mainModule.files
 
-        println("$builtInModuleDescriptor")
         analyzer.analyzeAndReport(files) {
             analyzerFacade.analyzeFiles(
                 files,

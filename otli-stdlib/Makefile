@@ -12,4 +12,4 @@ clean:
 	rm -rf build
 
 build/otli-stdlib.klib: $(SOURCES)
-	$(OTLIC) -Xallow-kotlin-package -Xmultifile-parts-inherit -verbose -output-klib -ir-output-dir build/ -ir-output-name otli-stdlib -Xstdlib-compilation -Xdont-warn-on-error-suppression $^
+	$(OTLIC) -Xallow-kotlin-package -output-klib -ir-output-dir build/ -ir-output-name otli-stdlib -Xstdlib-compilation -Xdont-warn-on-error-suppression $^

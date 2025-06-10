@@ -88,4 +88,27 @@ class FunctionTest {
                     
         """.trimIndent()
     )
+
+//    @Test
+//    fun `create lambda`() = transformTest(
+//        otliCode = """
+//                    val a = 5
+//                    val b = 3
+//                    fun add(x: Int, y: Int): Int {
+//                        return (x + y).also { println(it) }
+//                    }
+//                    val c = add(a, b)
+//        """.trimIndent(),
+//        expected = """
+//                    int32_t a = 5;
+//                    int32_t b = 3;
+//                    int32_t add(int32_t x, int32_t y) {
+//
+//                        return (x + y);
+//                    }
+//                    int32_t c = add(a, b);
+//
+//        """.trimIndent()
+//
+//    )
 }

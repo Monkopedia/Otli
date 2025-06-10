@@ -218,9 +218,23 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         // Run analysis if main module is sources
         var sourceModule: ModulesStructure? = null
         val includes = arguments.includes
+        val outputDir = File(outputDirPath)
         if (includes == null) {
+            val outputKlibPath =
+                if (arguments.outputKlib) {
+                    outputDir.resolve("$outputName.klib")
+                        .normalize().absolutePath
+                } else {
+                    outputDirPath
+                }
             sourceModule =
-                produceSourceModule(environmentForOtli, libraries, friendLibraries)
+                produceSourceModule(
+                    environmentForOtli,
+                    libraries,
+                    friendLibraries,
+                    arguments,
+                    outputKlibPath
+                )
         }
 
         val module = if (includes != null) {
@@ -294,7 +308,9 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
     private fun produceSourceModule(
         environmentForOtli: KotlinCoreEnvironment,
         libraries: List<String>,
-        friendLibraries: List<String>
+        friendLibraries: List<String>,
+        arguments: OtliCompilerArguments,
+        outputKlibPath: String
     ): ModulesStructure {
         val configuration = environmentForOtli.configuration
         val messageCollector =
@@ -313,7 +329,6 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         do {
             val analyzerFacade = TopDownAnalyzerFacadeForJSIR
             moduleStructure.runAnalysis(
-                messageCollector,
                 AnalyzerWithCompilerReport(environmentForOtli.configuration),
                 analyzerFacade = analyzerFacade
             )

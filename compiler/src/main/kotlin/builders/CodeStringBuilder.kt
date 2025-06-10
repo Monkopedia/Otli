@@ -79,7 +79,6 @@ class CodeStringBuilder {
     }
 
     private fun startLine() {
-        5u until 19u
         for (i in 0 until indent) {
             strBuilder.append("    ")
         }
