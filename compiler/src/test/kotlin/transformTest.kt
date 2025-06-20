@@ -6,6 +6,7 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.createTempFile
 import kotlin.test.assertEquals
+import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
 
 fun transformTest(
     otliCode: String,
@@ -13,7 +14,11 @@ fun transformTest(
     file: Path? = null,
     verification: (Map<String, String>) -> Unit = {
         val generated = it.filter { it.key.endsWith(".c") }.values.first().let {
-            if (it.startsWith("#include")) it.split("\n").drop(1).joinToString("\n") else it
+            if (file == null) {
+                it.split("\n").filter { !it.startsWith("#include \"") }.joinToString("\n")
+            } else {
+                it
+            }
         }
         assertEquals(expected, generated)
     }

@@ -61,5 +61,5 @@ fun methodName(expression: IrFunction, suffix: String = ""): Symbol {
     val prefix = expression.parent.fqNameForIrSerialization.asString().replace(".", "_")
         .takeIf { it.isNotEmpty() }?.plus("_") ?: ""
     val methodName = prefix + expression.symbol.owner.name.asString() + suffix
-    return Included(methodName, expression.file.name + ".h", false)
+    return Included(methodName, headerName(expression.file), false)
 }

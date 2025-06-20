@@ -45,7 +45,11 @@ class BlockSymbol(
     }
 
     override fun addSymbol(symbol: Symbol) {
-        symbolList += symbol
+        if (symbol is GroupSymbol) {
+            symbolList += symbol.symbols
+        } else {
+            symbolList += symbol
+        }
     }
 
     override fun toString(): String =
@@ -55,8 +59,8 @@ class BlockSymbol(
 
 typealias BodyBuilder = CodeBuilder.() -> Unit
 
-inline fun CodeBuilder.block(symbol: Symbol, postSymbol: Symbol? = null, block: BodyBuilder) {
-    addSymbol(block(this, symbol, postSymbol, block))
+inline fun CodeBuilder.block(symbol: Symbol, postSymbol: Symbol? = null, block: BodyBuilder): Symbol {
+    return block(this, symbol, postSymbol, block)
 }
 
 inline fun block(
@@ -65,3 +69,7 @@ inline fun block(
     postSymbol: Symbol? = null,
     block: BodyBuilder
 ) = BlockSymbol(parent, symbol, postSymbol).apply(block)
+
+inline fun CodeBuilder.scopeBlock(
+    block: BodyBuilder
+) = BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block)

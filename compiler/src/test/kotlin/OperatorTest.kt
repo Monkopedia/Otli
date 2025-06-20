@@ -12,6 +12,7 @@ class OperatorTest {
                     val z = x + y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     int32_t y = 3;
@@ -28,6 +29,7 @@ class OperatorTest {
                     val z = x + y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     uint32_t x = 2;
                     uint32_t y = 3;
@@ -44,6 +46,7 @@ class OperatorTest {
                     val z = x - y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     int32_t y = 3;
@@ -60,6 +63,7 @@ class OperatorTest {
                     val z = x - y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     uint32_t x = 2;
                     uint32_t y = 3;
@@ -76,6 +80,7 @@ class OperatorTest {
                     val z = x * y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     int32_t y = 3;
@@ -92,6 +97,7 @@ class OperatorTest {
                     val z = x * y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     uint32_t x = 2;
                     uint32_t y = 3;
@@ -108,6 +114,7 @@ class OperatorTest {
                     val z = x / y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     int32_t y = 3;
@@ -124,6 +131,7 @@ class OperatorTest {
                     val z = x / y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     uint32_t x = 2;
                     uint32_t y = 3;
@@ -140,6 +148,7 @@ class OperatorTest {
                     val z = x + y.toInt()
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     uint32_t y = 3;
@@ -156,6 +165,7 @@ class OperatorTest {
                     val z = (x + y) * y / x
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t x = 2;
                     int32_t y = 3;

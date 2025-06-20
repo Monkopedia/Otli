@@ -2,13 +2,16 @@ package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
+import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.Parens
+import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.RawCast
 import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
+import com.monkopedia.otli.builders.scopeBlock
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -53,6 +56,8 @@ fun CodegenVisitor.buildCall(
             "minus" -> operatorSymbol(arguments, data, "-")
             "times" -> operatorSymbol(arguments, data, "*")
             "div" -> operatorSymbol(arguments, data, "/")
+            "inc" -> operation(arguments, data, "+", Raw("1"))
+            "dec" -> operation(arguments, data, "-", Raw("1"))
 
             else -> error("Unsupported operator: $name")
         }
@@ -90,6 +95,12 @@ fun CodegenVisitor.buildCall(
                 )
             )
 
+            "repeat" -> Call(
+                Included("OTLI_REPEAT", "OtliLoops.h", false),
+                arguments.first()?.accept(this@buildCall, data) ?: error("Missing first argument"),
+                arguments[1]!!.accept(this@buildCall, data)
+            )
+
             else -> error("Unhandled stdlib method $pkg.$name")
         }
     }
@@ -104,6 +115,22 @@ fun CodegenVisitor.buildCall(
             .toTypedArray()
     )
 }
+
+private fun CodegenVisitor.operation(
+    arguments: List<IrExpression?>,
+    data: CodeBuilder,
+    operand: String,
+    other: Symbol
+): Symbol {
+    arguments.takeIf { it.size == 1 }?.takeIf {
+        val type1 = ResolvedType(it[0]?.type ?: return@takeIf false)
+        type1.isNative
+    } ?: error("Can't handle $arguments")
+    val symbol1 = arguments[0]?.accept(this, data)
+        ?: error("Lost child during resolution")
+    return Parens(symbol1.op(operand, other))
+}
+
 
 private fun CodegenVisitor.operatorSymbol(
     arguments: List<IrExpression?>,

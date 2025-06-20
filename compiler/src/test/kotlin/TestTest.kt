@@ -4,11 +4,11 @@ import java.io.File
 import kotlin.math.exp
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.expect
 
 class TestTest {
     @Test
     fun testClass() {
-        val expected =
         transformTest(
             """
                 import kotlin.test.*
@@ -88,4 +88,50 @@ class TestTest {
             """.trimIndent(), files["test_main.c"])
         }
     }
+
+    @Test
+    fun testRepeat() = transformTest(
+        otliCode = """
+            package otli
+
+            import kotlin.test.*
+
+            class RepeatTest {
+
+                @Test
+                fun testRepeat() {
+                    var c = 0;
+                    repeat(5) {
+                        c++
+                    }
+                    assertEquals(5, c);
+                }
+            }
+        """.trimIndent(),
+        expected = """
+            #include <CUnit/CUnit.h>
+            #include <stdint.h>
+            #include "OtliLoops.h"
+            #include "otli_repeating_test.kt.h"
+
+            void otli_RepeatTest_testRepeat() {
+
+                int32_t c = 0;
+                OTLI_REPEAT(5, {
+                        int32_t tmp0 = c;
+                        c = (tmp0 + 1);
+                        tmp0;
+
+                });
+                CU_assertImplementation(5 == c, 12, "assertEquals(5, c)", "repeating_test.kt", "testRepeat", CU_FALSE);
+            }
+            CU_TestInfo otli_RepeatTest_tests[] = {
+                {"testRepeat", otli_RepeatTest_testRepeat}, 
+                {NULL}
+            };
+            
+            
+        """.trimIndent(),
+        file = File("/tmp/", "repeating_test.kt").toPath()
+    )
 }

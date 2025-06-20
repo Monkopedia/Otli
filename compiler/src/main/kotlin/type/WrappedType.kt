@@ -16,11 +16,14 @@
 
 package com.monkopedia.otli.type
 
+import com.monkopedia.otli.builders.Include
+
 
 private val existingTypes = mutableMapOf<String, WrappedType>()
 
 abstract class WrappedType {
 //    abstract val cType: WrappedType
+    abstract val include: Include?
 
     open fun clone(): WrappedType = this
 

@@ -15,43 +15,48 @@
  */
 package com.monkopedia.otli.type
 
+import com.monkopedia.otli.builders.Include
 import kotlinx.serialization.Serializable
 
 private val NATIVE =
-    listOf(
-        "uint8_t",
-        "uint16_t",
-        "uint32_t",
-        "uint64_t",
-        "int8_t",
-        "int16_t",
-        "int32_t",
-        "int64_t",
-        "uintptr_t",
-        "size_t",
-        "void",
-        "bool",
-        "char",
-        "signed char",
-        "unsigned char",
-        "short",
-        "signed short",
-        "unsigned short",
-        "int",
-        "signed int",
-        "unsigned int",
-        "long",
-        "signed long",
-        "unsigned long",
-        "long long",
-        "signed long long",
-        "unsigned long long",
-        "float",
-        "double"
+    mapOf(
+        "uint8_t" to "stdint.h",
+        "uint16_t" to "stdint.h",
+        "uint32_t" to "stdint.h",
+        "uint64_t" to "stdint.h",
+        "int8_t" to "stdint.h",
+        "int16_t" to "stdint.h",
+        "int32_t" to "stdint.h",
+        "int64_t" to "stdint.h",
+        "uintptr_t" to "stdint.h",
+        "size_t" to "stdint.h",
+        "void" to null,
+        "bool" to null,
+        "char" to null,
+        "signed char" to null,
+        "unsigned char" to null,
+        "short" to null,
+        "signed short" to null,
+        "unsigned short" to null,
+        "int" to null,
+        "signed int" to null,
+        "unsigned int" to null,
+        "long" to null,
+        "signed long" to null,
+        "unsigned long" to null,
+        "long long" to null,
+        "signed long long" to null,
+        "unsigned long long" to null,
+        "float" to null,
+        "double" to null
     )
 
 @Serializable
 data class WrappedTypeReference(val name: String) : WrappedType() {
+    override val include: Include?
+        get() = if (isNative) {
+            NATIVE[name]?.let { Include(it, true) }
+        } else null
     override val isArray: Boolean
         get() = name.endsWith("]")
     val arraySize: Int

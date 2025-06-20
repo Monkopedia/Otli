@@ -19,7 +19,10 @@ class CFunctionSignature(
     private val name: String,
     private val retType: Symbol,
     private val args: List<LocalVar>
-) : Symbol {
+) : Symbol, SymbolContainer {
+    override val symbols: List<Symbol>
+        get() = args + retType
+
     override fun build(builder: CodeStringBuilder) {
         retType.build(builder)
         builder.append(' ')
@@ -90,8 +93,11 @@ class CLocalVar(
     }
 }
 
-class CType(private val typeStr: String) : Symbol {
-    constructor(type: ResolvedType) : this(type.toString())
+class CType(private val typeStr: String, private val include: Include? = null) : Symbol, Includes {
+    constructor(type: ResolvedType) : this(type.toString(), type.include)
+
+    override val includes: List<Symbol>
+        get() = listOfNotNull(include)
 
     override fun build(builder: CodeStringBuilder) {
         builder.append(typeStr)

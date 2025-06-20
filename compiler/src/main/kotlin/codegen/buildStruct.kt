@@ -26,6 +26,10 @@ fun CodegenVisitor.defineStruct(cls: IrClass, data: CodeBuilder): Symbol =
             error("Non-constructor parameters are not supported")
         }
         cls.properties.forEach {
-            +buildProperty(it, data)
+            +buildProperty(
+                it,
+                data,
+                it.backingField?.type ?: error("Properties must have backing fields")
+            )
         }
     }

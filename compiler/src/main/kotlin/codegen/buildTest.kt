@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
 import org.jetbrains.kotlin.ir.util.isFakeOverriddenFromAny
 import org.jetbrains.kotlin.ir.util.kotlinFqName
+import org.jetbrains.kotlin.name.FqName
 
 private val IrConstructorCall.isBeforeTestAnnotation: Boolean
     get() {
@@ -94,7 +95,7 @@ fun CodegenVisitor.buildTest(cls: IrClass, data: CodeBuilder): Symbol = GroupSym
     val hasBeforesOrAfters = befores.isNotEmpty() || afters.isNotEmpty()
     val arrayArgs = if (hasBeforesOrAfters) {
         tests.map { test ->
-            val wrapperName = methodName(test, suffix =  "_wrapper")
+            val wrapperName = methodName(test, suffix = "_wrapper")
             symbolList.add(
                 data.function {
                     this.name = wrapperName
@@ -138,13 +139,13 @@ fun classTestsName(cls: IrClass): String = (
         .takeIf { it.isNotEmpty() }?.plus("_") ?: ""
     ) + "tests"
 
-fun CodeBuilder.headerName(cls: IrClass): String = headerName(cls.file)
+fun headerName(cls: IrClass): String = headerName(cls.file)
 
-fun CodeBuilder.headerName(cls: IrFile): String = cls.packageFqName.asString().takeIf {
+fun headerName(cls: IrFile): String = cls.packageFqName.pkgPrefix() + cls.name + ".h"
+
+fun FqName.pkgPrefix(): String = asString().takeIf {
     it.isNotEmpty()
-}?.replace(".", "_")
-    ?.plus("_").orEmpty() +
-    cls.name + ".h"
+}?.replace(".", "_")?.plus("_").orEmpty()
 
 fun CodegenVisitor.buildTestMethod(
     expression: IrCall?,

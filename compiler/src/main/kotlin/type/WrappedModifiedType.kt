@@ -15,7 +15,12 @@
  */
 package com.monkopedia.otli.type
 
-abstract class WrappedWrapper(val baseType: WrappedType) : WrappedType()
+import com.monkopedia.otli.builders.Include
+
+abstract class WrappedWrapper(val baseType: WrappedType) : WrappedType() {
+    override val include: Include?
+        get() = baseType.include
+}
 
 class WrappedModifiedType(baseType: WrappedType, val modifier: String) : WrappedWrapper(baseType) {
     override val isReturnable: Boolean

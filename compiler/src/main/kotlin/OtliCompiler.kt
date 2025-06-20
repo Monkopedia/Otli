@@ -2,6 +2,10 @@ package com.monkopedia.otli
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
+import com.monkopedia.otli.builders.CCodeBuilder
+import com.monkopedia.otli.builders.CodeBuilder
+import com.monkopedia.otli.builders.buildCode
+import com.monkopedia.otli.codegen.CodegenVisitor
 import java.io.File
 import kotlin.collections.plus
 import kotlin.text.isEmpty
@@ -41,8 +45,10 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.expressions.IrDeclarationReference
 import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
+import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
+import org.jetbrains.kotlin.js.config.produceKlibFile
 import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
 import org.jetbrains.kotlin.konan.file.ZipFileSystemCacheableAccessor
 import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
@@ -84,7 +90,19 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         paths: KotlinPaths?
     ): ExitCode {
         try {
-            compileToIr(arguments, configuration, rootDisposable, paths)
+            val irOutput = compileToIr(arguments, configuration, rootDisposable, paths)
+            if (!arguments.outputKlib) {
+                val builder = CCodeBuilder()
+                builder.addSymbol(irOutput.accept(CodegenVisitor(), builder))
+                val outputDir = File(arguments.outputDir ?: "build")
+                outputDir.mkdirs()
+                buildString {
+                    irOutput.accept(DumpIrTreeVisitor(this), "")
+                }.let(::println)
+                builder.files().also { println("Files: ${it.keys}") }.forEach { (file, code) ->
+                    File(outputDir, file).writeText(code)
+                }
+            }
             return OK
         } catch (t: ExitCodeException) {
             return t.code

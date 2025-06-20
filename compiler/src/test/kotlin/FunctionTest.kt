@@ -13,6 +13,7 @@ class FunctionTest {
                     }
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t main() {
                     
@@ -31,6 +32,7 @@ class FunctionTest {
                     }
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t add(int32_t x, int32_t y) {
                     
@@ -46,6 +48,7 @@ class FunctionTest {
                     fun main(): Int = 0
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t main() {
                     
@@ -62,6 +65,7 @@ class FunctionTest {
                     fun add(x: Int, y: Int): Int = x + y
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t add(int32_t x, int32_t y) {
                     
@@ -83,6 +87,7 @@ class FunctionTest {
                     val c = add(a, b)
         """.trimIndent(),
         expected = """
+                    #include <stdint.h>
                     
                     int32_t a = 5;
                     int32_t b = 3;

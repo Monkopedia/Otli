@@ -78,7 +78,7 @@ class HeaderVisitor : IrVisitor<Unit, CodeBuilder>() {
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitFile(declaration: IrFile, data: CodeBuilder): Unit {
         data.addSymbol(
-            FileSymbol(data, declaration.name + ".h").apply {
+            FileSymbol(data, declaration.packageFqName.pkgPrefix() + declaration.name + ".h").apply {
                 val lastFile = currentFile
                 currentFile = declaration
                 val includeBlock = groupSymbol.symbolList.removeFirst()
