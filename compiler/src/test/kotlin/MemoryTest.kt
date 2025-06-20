@@ -12,6 +12,7 @@ class MemoryTest {
             )
         """.trimIndent(),
         expected = """
+            
             typedef struct {
                 int32_t a;
             } otli_test_A;

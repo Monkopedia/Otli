@@ -13,6 +13,7 @@ class FunctionTest {
                     }
         """.trimIndent(),
         expected = """
+                    
                     int32_t main() {
                     
                         return 0;
@@ -30,6 +31,7 @@ class FunctionTest {
                     }
         """.trimIndent(),
         expected = """
+                    
                     int32_t add(int32_t x, int32_t y) {
                     
                         return (x + y);
@@ -44,6 +46,7 @@ class FunctionTest {
                     fun main(): Int = 0
         """.trimIndent(),
         expected = """
+                    
                     int32_t main() {
                     
                         return 0;
@@ -59,6 +62,7 @@ class FunctionTest {
                     fun add(x: Int, y: Int): Int = x + y
         """.trimIndent(),
         expected = """
+                    
                     int32_t add(int32_t x, int32_t y) {
                     
                         return (x + y);
@@ -70,6 +74,7 @@ class FunctionTest {
     @Test
     fun `call function test`() = transformTest(
         otliCode = """
+                    package com.monkopedia.otli
                     val a = 5
                     val b = 3
                     fun add(x: Int, y: Int): Int {
@@ -78,9 +83,10 @@ class FunctionTest {
                     val c = add(a, b)
         """.trimIndent(),
         expected = """
+                    
                     int32_t a = 5;
                     int32_t b = 3;
-                    int32_t add(int32_t x, int32_t y) {
+                    int32_t com_monkopedia_otli_add(int32_t x, int32_t y) {
                     
                         return (x + y);
                     }

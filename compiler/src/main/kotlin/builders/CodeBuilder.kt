@@ -13,7 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("NOTHING_TO_INLINE")
+
 package com.monkopedia.otli.builders
+
+import org.jetbrains.kotlin.ir.declarations.IrClass
 
 interface Symbol {
     fun build(builder: CodeStringBuilder)
@@ -31,24 +35,11 @@ object Empty : Symbol {
 
 interface LocalVar : Symbol {
     val name: String
+    var isExtern: Boolean
 }
 
-interface LangFactory {
-    fun define(
-        name: String,
-        type: ResolvedType,
-        initializer: Symbol?,
-        constructorArgs: List<Symbol>?
-    ): LocalVar
-
-    fun funSig(name: String, retType: Symbol?, args: List<LocalVar>): Symbol
-
-    fun createType(type: ResolvedType): Symbol
-}
-
-interface CodeBuilder<T : LangFactory> {
-    val parent: CodeBuilder<T>?
-    val factory: T
+interface CodeBuilder {
+    val parent: CodeBuilder?
 
     fun addSymbol(symbol: Symbol)
 
@@ -57,18 +48,15 @@ interface CodeBuilder<T : LangFactory> {
     }
 }
 
-class CodeBuilderBase<T : LangFactory>(
-    override val factory: T,
-    rootScope: Scope<T> = Scope<T>(),
-    internal val addSemis: Boolean = true
-) : CodeBuilder<T>,
+class CCodeBuilder(rootScope: Scope = Scope(), internal val addSemis: Boolean = true) :
+    CodeBuilder,
     SymbolContainer {
     private val symbolList = mutableListOf<Symbol>()
     override val symbols: List<Symbol>
         get() = symbolList
-    override val parent: CodeBuilder<T>? = null
+    override val parent: CodeBuilder? = null
     private val scopes = mutableListOf(rootScope)
-    val currentScope: Scope<T>
+    val currentScope: Scope
         get() = scopes.last()
 
     override fun addSymbol(symbol: Symbol) {
@@ -78,18 +66,16 @@ class CodeBuilderBase<T : LangFactory>(
     override fun toString(): String = builder().build()
 
     private fun builder(): CodeStringBuilder = buildCode {
-            for (symbol in symbolList) {
-                symbol.build(this)
-                if (addSemis && !symbol.blockSemi) {
-                    append(';')
-                }
-                append('\n')
+        for (symbol in symbolList) {
+            symbol.build(this)
+            if (addSemis && !symbol.blockSemi) {
+                append(';')
             }
+            append('\n')
         }
-
-    fun files(): Map<String, String> {
-        return builder().allFiles()
     }
+
+    fun files(): Map<String, String> = builder().allFiles()
 
     fun pushScope() {
         scopes.add(Scope(currentScope))
@@ -100,8 +86,8 @@ class CodeBuilderBase<T : LangFactory>(
     }
 }
 
-inline fun CodeBuilder<*>.appendLine() {
+inline fun CodeBuilder.appendLine() {
     addSymbol(Empty)
 }
 
-inline fun CodeBuilder<*>.type(type: ResolvedType): Symbol = factory.createType(type)
+inline fun type(type: ResolvedType): Symbol = CType(type)

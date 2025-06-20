@@ -1,16 +1,18 @@
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+
 package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.Empty
 import com.monkopedia.otli.builders.FileSymbol
 import com.monkopedia.otli.builders.GroupSymbol
-import com.monkopedia.otli.builders.LangFactory
 import com.monkopedia.otli.builders.LocalVar
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.Return
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.block
+import com.monkopedia.otli.builders.reference
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -103,349 +105,371 @@ import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 
-class CodegenVisitor<T : LangFactory> : IrVisitor<Symbol, CodeBuilder<T>>() {
+class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     val declarationLookup = mutableMapOf<IrDeclarationBase, LocalVar>()
-    override fun visitElement(element: IrElement, data: CodeBuilder<T>): Symbol {
+    var currentFile: IrFile? = null
+    var currentFunction: IrFunction? = null
+    val testClasses = mutableListOf<IrClass>()
+
+    override fun visitElement(element: IrElement, data: CodeBuilder): Symbol {
         error("Unsupported element type: ${element::class.simpleName}")
     }
 
-    override fun visitDeclaration(declaration: IrDeclarationBase, data: CodeBuilder<T>): Symbol =
+    override fun visitDeclaration(declaration: IrDeclarationBase, data: CodeBuilder): Symbol =
         visitElement(declaration, data)
 
-    override fun visitValueParameter(declaration: IrValueParameter, data: CodeBuilder<T>): Symbol =
+    override fun visitValueParameter(declaration: IrValueParameter, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitClass(declaration: IrClass, data: CodeBuilder<T>): Symbol =
+    override fun visitClass(declaration: IrClass, data: CodeBuilder): Symbol =
         if (declaration.isData) {
             buildStruct(declaration, data)
         } else {
-            visitDeclaration(declaration, data)
+            if (declaration.declarations.all { it.hasTestDeclaration }) {
+                buildTest(declaration, data).also {
+                    testClasses.add(declaration)
+                }
+            } else {
+                visitDeclaration(declaration, data)
+            }
         }
 
     override fun visitAnonymousInitializer(
         declaration: IrAnonymousInitializer,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclaration(declaration, data)
 
-    override fun visitTypeParameter(declaration: IrTypeParameter, data: CodeBuilder<T>): Symbol =
+    override fun visitTypeParameter(declaration: IrTypeParameter, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitFunction(declaration: IrFunction, data: CodeBuilder<T>): Symbol =
-        buildFunction(declaration, data)
+    override fun visitFunction(declaration: IrFunction, data: CodeBuilder): Symbol {
+        val lastFunction = currentFunction
+        currentFunction = declaration
+        return buildFunction(declaration, data).also {
+            currentFunction = lastFunction
+        }
+    }
 
-    override fun visitConstructor(declaration: IrConstructor, data: CodeBuilder<T>): Symbol =
+    override fun visitConstructor(declaration: IrConstructor, data: CodeBuilder): Symbol =
         visitFunction(declaration, data)
 
-    override fun visitEnumEntry(declaration: IrEnumEntry, data: CodeBuilder<T>): Symbol =
+    override fun visitEnumEntry(declaration: IrEnumEntry, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
     override fun visitErrorDeclaration(
         declaration: IrErrorDeclaration,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclaration(declaration, data)
 
-    override fun visitField(declaration: IrField, data: CodeBuilder<T>): Symbol =
+    override fun visitField(declaration: IrField, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
     override fun visitLocalDelegatedProperty(
         declaration: IrLocalDelegatedProperty,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclaration(declaration, data)
 
-    override fun visitModuleFragment(declaration: IrModuleFragment, data: CodeBuilder<T>): Symbol =
+    override fun visitModuleFragment(declaration: IrModuleFragment, data: CodeBuilder): Symbol =
         GroupSymbol().apply {
+            declaration.accept(HeaderVisitor(), data)
             symbolList.addAll(declaration.files.map { it.accept(this@CodegenVisitor, data) })
+            if (testClasses.isNotEmpty()) {
+                symbolList.add(buildTestMain(testClasses, data))
+            }
         }
 
-    override fun visitProperty(declaration: IrProperty, data: CodeBuilder<T>): Symbol {
+    override fun visitProperty(declaration: IrProperty, data: CodeBuilder): Symbol {
         val initializer = declaration.backingField?.initializer?.accept(this@CodegenVisitor, data)
         return buildProperty(declaration, data, initializer)
     }
 
-    override fun visitScript(declaration: IrScript, data: CodeBuilder<T>): Symbol =
+    override fun visitScript(declaration: IrScript, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitReplSnippet(declaration: IrReplSnippet, data: CodeBuilder<T>): Symbol =
+    override fun visitReplSnippet(declaration: IrReplSnippet, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitSimpleFunction(declaration: IrSimpleFunction, data: CodeBuilder<T>): Symbol =
+    override fun visitSimpleFunction(declaration: IrSimpleFunction, data: CodeBuilder): Symbol =
         visitFunction(declaration, data)
 
-    override fun visitTypeAlias(declaration: IrTypeAlias, data: CodeBuilder<T>): Symbol =
+    override fun visitTypeAlias(declaration: IrTypeAlias, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitVariable(declaration: IrVariable, data: CodeBuilder<T>): Symbol =
+    override fun visitVariable(declaration: IrVariable, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
     override fun visitPackageFragment(
         declaration: IrPackageFragment,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitElement(declaration, data)
 
     override fun visitExternalPackageFragment(
         declaration: IrExternalPackageFragment,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitPackageFragment(declaration, data)
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    override fun visitFile(declaration: IrFile, data: CodeBuilder<T>): Symbol =
-        FileSymbol(declaration.name).apply {
+    override fun visitFile(declaration: IrFile, data: CodeBuilder): Symbol =
+        FileSymbol(data, declaration.name + ".c").apply {
+            val lastFile = currentFile
+            currentFile = declaration
             groupSymbol.symbolList.addAll(
                 declaration.declarations.map {
-                    it.accept(this@CodegenVisitor, data)
+                    it.accept(this@CodegenVisitor, this)
                 }
             )
+            currentFile = lastFile
         }
 
-    override fun visitExpression(expression: IrExpression, data: CodeBuilder<T>): Symbol =
+    override fun visitExpression(expression: IrExpression, data: CodeBuilder): Symbol =
         visitElement(expression, data)
 
-    override fun visitBody(body: IrBody, data: CodeBuilder<T>): Symbol = visitElement(body, data)
+    override fun visitBody(body: IrBody, data: CodeBuilder): Symbol = visitElement(body, data)
 
-    override fun visitExpressionBody(body: IrExpressionBody, data: CodeBuilder<T>): Symbol =
+    override fun visitExpressionBody(body: IrExpressionBody, data: CodeBuilder): Symbol =
         body.expression.accept(this@CodegenVisitor, data)
 
-    override fun visitBlockBody(body: IrBlockBody, data: CodeBuilder<T>): Symbol =
+    override fun visitBlockBody(body: IrBlockBody, data: CodeBuilder): Symbol =
         block(data, Empty) {
             body.statements.forEach { addSymbol(it.accept(this@CodegenVisitor, data)) }
         }
 
     override fun visitDeclarationReference(
         expression: IrDeclarationReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclarationReference(expression, data)
 
     override fun visitMemberAccess(
         expression: IrMemberAccessExpression<*>,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclarationReference(expression, data)
 
     override fun visitFunctionAccess(
         expression: IrFunctionAccessExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitMemberAccess(expression, data)
 
-    override fun visitConstructorCall(expression: IrConstructorCall, data: CodeBuilder<T>): Symbol =
+    override fun visitConstructorCall(expression: IrConstructorCall, data: CodeBuilder): Symbol =
         visitFunctionAccess(expression, data)
 
     override fun visitSingletonReference(
         expression: IrGetSingletonValue,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclarationReference(expression, data)
 
-    override fun visitGetObjectValue(expression: IrGetObjectValue, data: CodeBuilder<T>): Symbol =
+    override fun visitGetObjectValue(expression: IrGetObjectValue, data: CodeBuilder): Symbol =
         visitSingletonReference(expression, data)
 
-    override fun visitGetEnumValue(expression: IrGetEnumValue, data: CodeBuilder<T>): Symbol =
+    override fun visitGetEnumValue(expression: IrGetEnumValue, data: CodeBuilder): Symbol =
         visitSingletonReference(expression, data)
 
     override fun visitRawFunctionReference(
         expression: IrRawFunctionReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclarationReference(expression, data)
 
     override fun visitContainerExpression(
         expression: IrContainerExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitBlock(expression: IrBlock, data: CodeBuilder<T>): Symbol =
+    override fun visitBlock(expression: IrBlock, data: CodeBuilder): Symbol =
         visitContainerExpression(expression, data)
 
-    override fun visitComposite(expression: IrComposite, data: CodeBuilder<T>): Symbol =
+    override fun visitComposite(expression: IrComposite, data: CodeBuilder): Symbol =
         visitContainerExpression(expression, data)
 
-    override fun visitReturnableBlock(expression: IrReturnableBlock, data: CodeBuilder<T>): Symbol =
+    override fun visitReturnableBlock(expression: IrReturnableBlock, data: CodeBuilder): Symbol =
         visitBlock(expression, data)
 
     override fun visitInlinedFunctionBlock(
         inlinedBlock: IrInlinedFunctionBlock,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitBlock(inlinedBlock, data)
 
-    override fun visitSyntheticBody(body: IrSyntheticBody, data: CodeBuilder<T>): Symbol =
+    override fun visitSyntheticBody(body: IrSyntheticBody, data: CodeBuilder): Symbol =
         visitBody(body, data)
 
-    override fun visitBreakContinue(jump: IrBreakContinue, data: CodeBuilder<T>): Symbol =
+    override fun visitBreakContinue(jump: IrBreakContinue, data: CodeBuilder): Symbol =
         visitExpression(jump, data)
 
-    override fun visitBreak(jump: IrBreak, data: CodeBuilder<T>): Symbol =
+    override fun visitBreak(jump: IrBreak, data: CodeBuilder): Symbol =
         visitBreakContinue(jump, data)
 
-    override fun visitContinue(jump: IrContinue, data: CodeBuilder<T>): Symbol =
+    override fun visitContinue(jump: IrContinue, data: CodeBuilder): Symbol =
         visitBreakContinue(jump, data)
 
-    override fun visitCall(expression: IrCall, data: CodeBuilder<T>): Symbol =
+    override fun visitCall(expression: IrCall, data: CodeBuilder): Symbol =
         buildCall(expression, data)
 
     override fun visitCallableReference(
         expression: IrCallableReference<*>,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitMemberAccess(expression, data)
 
     override fun visitFunctionReference(
         expression: IrFunctionReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitCallableReference(expression, data)
 
     override fun visitPropertyReference(
         expression: IrPropertyReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitCallableReference(expression, data)
 
     override fun visitLocalDelegatedPropertyReference(
         expression: IrLocalDelegatedPropertyReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitCallableReference(expression, data)
 
     override fun visitRichFunctionReference(
         expression: IrRichFunctionReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
     override fun visitRichPropertyReference(
         expression: IrRichPropertyReference,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitClassReference(expression: IrClassReference, data: CodeBuilder<T>): Symbol =
+    override fun visitClassReference(expression: IrClassReference, data: CodeBuilder): Symbol =
         visitDeclarationReference(expression, data)
 
-    override fun visitConst(expression: IrConst, data: CodeBuilder<T>): Symbol =
+    override fun visitConst(expression: IrConst, data: CodeBuilder): Symbol =
         Raw(expression.value.toString())
 
-    override fun visitConstantValue(expression: IrConstantValue, data: CodeBuilder<T>): Symbol =
+    override fun visitConstantValue(expression: IrConstantValue, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
     override fun visitConstantPrimitive(
         expression: IrConstantPrimitive,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitConstantValue(expression, data)
 
-    override fun visitConstantObject(expression: IrConstantObject, data: CodeBuilder<T>): Symbol =
+    override fun visitConstantObject(expression: IrConstantObject, data: CodeBuilder): Symbol =
         visitConstantValue(expression, data)
 
-    override fun visitConstantArray(expression: IrConstantArray, data: CodeBuilder<T>): Symbol =
+    override fun visitConstantArray(expression: IrConstantArray, data: CodeBuilder): Symbol =
         visitConstantValue(expression, data)
 
     override fun visitDelegatingConstructorCall(
         expression: IrDelegatingConstructorCall,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitFunctionAccess(expression, data)
 
     override fun visitDynamicExpression(
         expression: IrDynamicExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
     override fun visitDynamicOperatorExpression(
         expression: IrDynamicOperatorExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDynamicExpression(expression, data)
 
     override fun visitDynamicMemberExpression(
         expression: IrDynamicMemberExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDynamicExpression(expression, data)
 
     override fun visitEnumConstructorCall(
         expression: IrEnumConstructorCall,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitFunctionAccess(expression, data)
 
-    override fun visitErrorExpression(expression: IrErrorExpression, data: CodeBuilder<T>): Symbol =
+    override fun visitErrorExpression(expression: IrErrorExpression, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
     override fun visitErrorCallExpression(
         expression: IrErrorCallExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitErrorExpression(expression, data)
 
     override fun visitFieldAccess(
         expression: IrFieldAccessExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitDeclarationReference(expression, data)
 
-    override fun visitGetField(expression: IrGetField, data: CodeBuilder<T>): Symbol =
+    override fun visitGetField(expression: IrGetField, data: CodeBuilder): Symbol =
         visitFieldAccess(expression, data)
 
-    override fun visitSetField(expression: IrSetField, data: CodeBuilder<T>): Symbol =
+    override fun visitSetField(expression: IrSetField, data: CodeBuilder): Symbol =
         visitFieldAccess(expression, data)
 
     override fun visitFunctionExpression(
         expression: IrFunctionExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitGetClass(expression: IrGetClass, data: CodeBuilder<T>): Symbol =
+    override fun visitGetClass(expression: IrGetClass, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
     override fun visitInstanceInitializerCall(
         expression: IrInstanceInitializerCall,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitLoop(loop: IrLoop, data: CodeBuilder<T>): Symbol = visitExpression(loop, data)
+    override fun visitLoop(loop: IrLoop, data: CodeBuilder): Symbol = visitExpression(loop, data)
 
-    override fun visitWhileLoop(loop: IrWhileLoop, data: CodeBuilder<T>): Symbol =
+    override fun visitWhileLoop(loop: IrWhileLoop, data: CodeBuilder): Symbol =
         visitLoop(loop, data)
 
-    override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: CodeBuilder<T>): Symbol =
+    override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: CodeBuilder): Symbol =
         visitLoop(loop, data)
 
-    override fun visitReturn(expression: IrReturn, data: CodeBuilder<T>): Symbol =
+    override fun visitReturn(expression: IrReturn, data: CodeBuilder): Symbol =
         Return(expression.value.accept(this@CodegenVisitor, data))
 
     override fun visitStringConcatenation(
         expression: IrStringConcatenation,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitSuspensionPoint(expression: IrSuspensionPoint, data: CodeBuilder<T>): Symbol =
+    override fun visitSuspensionPoint(expression: IrSuspensionPoint, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
     override fun visitSuspendableExpression(
         expression: IrSuspendableExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitThrow(expression: IrThrow, data: CodeBuilder<T>): Symbol =
+    override fun visitThrow(expression: IrThrow, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
-    override fun visitTry(aTry: IrTry, data: CodeBuilder<T>): Symbol = visitExpression(aTry, data)
+    override fun visitTry(aTry: IrTry, data: CodeBuilder): Symbol = visitExpression(aTry, data)
 
-    override fun visitCatch(aCatch: IrCatch, data: CodeBuilder<T>): Symbol =
+    override fun visitCatch(aCatch: IrCatch, data: CodeBuilder): Symbol =
         visitElement(aCatch, data)
 
-    override fun visitTypeOperator(expression: IrTypeOperatorCall, data: CodeBuilder<T>): Symbol =
+    override fun visitTypeOperator(expression: IrTypeOperatorCall, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
     override fun visitValueAccess(
         expression: IrValueAccessExpression,
-        data: CodeBuilder<T>
+        data: CodeBuilder
     ): Symbol =
-        declarationLookup[expression.symbol.owner as? IrDeclarationBase]?.let { Reference(it) }
+        declarationLookup[expression.symbol.owner as? IrDeclarationBase]?.reference
             ?: error("$expression has not been mapped")
 
-    override fun visitGetValue(expression: IrGetValue, data: CodeBuilder<T>): Symbol =
+    override fun visitGetValue(expression: IrGetValue, data: CodeBuilder): Symbol =
         visitValueAccess(expression, data)
 
-    override fun visitSetValue(expression: IrSetValue, data: CodeBuilder<T>): Symbol =
+    override fun visitSetValue(expression: IrSetValue, data: CodeBuilder): Symbol =
         visitValueAccess(expression, data)
 
-    override fun visitVararg(expression: IrVararg, data: CodeBuilder<T>): Symbol =
+    override fun visitVararg(expression: IrVararg, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
-    override fun visitSpreadElement(spread: IrSpreadElement, data: CodeBuilder<T>): Symbol =
+    override fun visitSpreadElement(spread: IrSpreadElement, data: CodeBuilder): Symbol =
         visitElement(spread, data)
 
-    override fun visitWhen(expression: IrWhen, data: CodeBuilder<T>): Symbol =
+    override fun visitWhen(expression: IrWhen, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
 
-    override fun visitBranch(branch: IrBranch, data: CodeBuilder<T>): Symbol =
+    override fun visitBranch(branch: IrBranch, data: CodeBuilder): Symbol =
         visitElement(branch, data)
 
-    override fun visitElseBranch(branch: IrElseBranch, data: CodeBuilder<T>): Symbol =
+    override fun visitElseBranch(branch: IrElseBranch, data: CodeBuilder): Symbol =
         visitBranch(branch, data)
 }
 

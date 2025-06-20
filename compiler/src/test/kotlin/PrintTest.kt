@@ -12,6 +12,7 @@ class PrintTest {
             }
         """.trimIndent(),
         expected = """
+            
             int32_t a = 5;
             void main() {
             

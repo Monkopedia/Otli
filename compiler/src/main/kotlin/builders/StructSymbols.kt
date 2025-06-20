@@ -27,7 +27,7 @@ private class EndStruct(val name: Symbol) : Symbol, SymbolContainer {
     }
 }
 
-open class StructSymbol<T : LangFactory>(name: Symbol, structBuilder: CodeBuilder<T>) :
+open class StructSymbol(name: Symbol, structBuilder: CodeBuilder) :
     Symbol,
     SymbolContainer {
     private val block = BlockSymbol(
@@ -38,7 +38,7 @@ open class StructSymbol<T : LangFactory>(name: Symbol, structBuilder: CodeBuilde
     lateinit var signature: Symbol
     val symbol: Symbol
         get() = block
-    val body: CodeBuilder<T>
+    val body: CodeBuilder
         get() = block
 
     override val symbols: List<Symbol>
@@ -56,9 +56,9 @@ open class StructSymbol<T : LangFactory>(name: Symbol, structBuilder: CodeBuilde
     override fun toString(): String = signature.toString()
 }
 
-inline fun <T : LangFactory> CodeBuilder<T>.struct(
+inline fun CodeBuilder.struct(
     name: Symbol,
-    buildBody: BodyBuilder<T>
+    buildBody: BodyBuilder
 ): Symbol {
     val builder = functionScope {
         StructSymbol(name, this)

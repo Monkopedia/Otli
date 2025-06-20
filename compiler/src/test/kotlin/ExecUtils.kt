@@ -1,6 +1,8 @@
 package com.monkopedia.otli
 
 import com.intellij.openapi.util.Disposer
+import java.io.File
+import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.createTempFile
 import kotlin.io.path.writeText
@@ -15,14 +17,15 @@ import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.config.messageCollector
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
-fun OtliCompiler.compileCode(code: String): IrModuleFragment? {
+fun OtliCompiler.compileCode(code: String, file: Path? = null): IrModuleFragment? {
     val arguments = OtliCompilerArguments()
-    val file = createTempFile(suffix = ".kt")
+    val file = file ?: createTempFile(suffix = ".kt")
     file.writeText(code)
     arguments.kotlinHome = "/usr/share/kotlin"
     arguments.outputDir = "ir"
     arguments.moduleName = "test_module"
-    arguments.libraries = "../otli-stdlib/build/otli-stdlib.klib"
+    arguments.libraries = "../otli-stdlib/build/otli-stdlib.klib${File.pathSeparator}" +
+        "../otli-test/build/otli-test.klib"
     arguments.freeArgs = listOf(file.absolutePathString())
 
     val messageCollector = PrintingMessageCollector(

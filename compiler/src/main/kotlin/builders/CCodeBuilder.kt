@@ -15,24 +15,6 @@
  */
 package com.monkopedia.otli.builders
 
-typealias CCodeBuilder = CodeBuilder<CFactory>
-
-fun CCodeBuilder(): CodeBuilderBase<CFactory> = CodeBuilderBase(CFactory(), addSemis = true)
-
-class CFactory : LangFactory {
-    override fun define(
-        name: String,
-        type: ResolvedType,
-        initializer: Symbol?,
-        constructorArgs: List<Symbol>?
-    ): LocalVar = CLocalVar(name, type, initializer, constructorArgs)
-
-    override fun funSig(name: String, retType: Symbol?, args: List<LocalVar>): Symbol =
-        CFunctionSignature(name, retType ?: CType("void"), args)
-
-    override fun createType(type: ResolvedType): Symbol = CType(type)
-}
-
 class CFunctionSignature(
     private val name: String,
     private val retType: Symbol,
@@ -57,30 +39,53 @@ class CLocalVar(
     override val name: String,
     val type: ResolvedType,
     private val initializer: Symbol?,
-    private val constructorArgs: List<Symbol>?
+    private val constructorArgs: List<Symbol>?,
+    private val isArrayType: Boolean = false,
+    private val arraySize: Int = 0
 ) : LocalVar,
     SymbolContainer {
     private val typeSymbol = CType(type)
     override val symbols: List<Symbol>
-        get() = listOfNotNull(typeSymbol, initializer)
+        get() = listOfNotNull(typeSymbol, initializer) + constructorArgs.orEmpty()
+    override var isExtern: Boolean = false
 
     override fun build(builder: CodeStringBuilder) {
+        if (isExtern) {
+            builder.append("extern ")
+        }
         typeSymbol.build(builder)
         builder.append(' ')
         builder.append(name)
-        if (constructorArgs != null) {
-            builder.append('(')
-            constructorArgs.forEachIndexed { index, symbol ->
-                if (index != 0) {
-                    builder.append(", ")
-                }
-                symbol.build(builder)
+        if (isArrayType) {
+            if (arraySize != 0) {
+                builder.append("[$arraySize]")
+            } else {
+                builder.append("[]")
             }
-            builder.append(')')
         }
         initializer?.let {
             builder.append(" = ")
             it.build(builder)
+        }
+        if (constructorArgs != null) {
+            builder.append(" = ")
+            builder.append('{')
+            if (isArrayType) {
+                builder.startBlock()
+                builder.append("\n")
+            }
+            constructorArgs.forEachIndexed { index, symbol ->
+                if (index != 0) {
+                    builder.append(", ")
+                    if (isArrayType) builder.append("\n")
+                }
+                symbol.build(builder)
+            }
+            if (isArrayType) {
+                builder.endBlock()
+                builder.append("\n")
+            }
+            builder.append('}')
         }
     }
 }
@@ -93,23 +98,23 @@ class CType(private val typeStr: String) : Symbol {
     }
 }
 
-inline fun CCodeBuilder.include(target: String) {
+inline fun CodeBuilder.include(target: String) {
     addSymbol(PreprocessorSymbol("include \"$target\""))
 }
 
-inline fun CCodeBuilder.includeSys(target: String) {
+inline fun CodeBuilder.includeSys(target: String) {
     addSymbol(PreprocessorSymbol("include <$target>"))
 }
 
-inline fun CCodeBuilder.define(condition: String) = +PreprocessorSymbol("define $condition")
+inline fun CodeBuilder.define(condition: String) = +PreprocessorSymbol("define $condition")
 
-inline fun CCodeBuilder.ifdef(condition: String, builder: CCodeBuilder.() -> Unit) = block(
+inline fun CodeBuilder.ifdef(condition: String, builder: CodeBuilder.() -> Unit) = block(
     PreprocessorSymbol("ifdef $condition\n"),
     PreprocessorSymbol("endif //$condition"),
     builder
 )
 
-inline fun CCodeBuilder.ifndef(condition: String, builder: CCodeBuilder.() -> Unit) = block(
+inline fun CodeBuilder.ifndef(condition: String, builder: CodeBuilder.() -> Unit) = block(
     PreprocessorSymbol("ifndef $condition\n"),
     PreprocessorSymbol("endif //$condition"),
     builder

@@ -13,4 +13,4 @@ clean:
 
 build/otli-test.klib: $(SOURCES)
 	#  -Xstdlib-compilation
-	$(OTLIC) -kotlin-home /usr/share/kotlin -verbose -ir-output-dir build/ -ir-output-name otli-test -libraries=../otli-stdlib/build/otli-stdlib.klib $^
+	$(OTLIC) -kotlin-home /usr/share/kotlin -output-klib -verbose -ir-output-dir build/ -ir-output-name otli-test -libraries=../otli-stdlib/build/otli-stdlib.klib $^

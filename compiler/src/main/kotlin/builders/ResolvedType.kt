@@ -31,7 +31,7 @@ fun ResolvedType(type: IrType): WrappedType {
     type.getClass()?.takeIf { it.isData }?.let {
         return WrappedType(it.typeName())
     }
-    return error("Can't handle $type")
+    return error("Can't handle $type ${type.classFqName?.asString()}")
 }
 
 fun IrClass.typeName(): String {

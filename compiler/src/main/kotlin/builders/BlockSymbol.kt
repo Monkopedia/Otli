@@ -15,12 +15,12 @@
  */
 package com.monkopedia.otli.builders
 
-class BlockSymbol<T : LangFactory>(
-    override val parent: CodeBuilder<T>,
+class BlockSymbol(
+    override val parent: CodeBuilder,
     private val baseSymbol: Symbol,
     private val postSymbol: Symbol? = null
 ) : Symbol,
-    CodeBuilder<T>,
+    CodeBuilder,
     SymbolContainer {
     private val symbolList = mutableListOf<Symbol>()
     override val symbols: List<Symbol>
@@ -48,27 +48,20 @@ class BlockSymbol<T : LangFactory>(
         symbolList += symbol
     }
 
-    override val factory: T
-        get() = parent.factory
-
     override fun toString(): String =
         "Block@${hashCode()}: [ start=$baseSymbol, end=$postSymbol\n    " +
             symbolList.joinToString("\n    ") + "end block@${hashCode()}"
 }
 
-typealias BodyBuilder<T> = CodeBuilder<T>.() -> Unit
+typealias BodyBuilder = CodeBuilder.() -> Unit
 
-inline fun <T : LangFactory> CodeBuilder<T>.block(
-    symbol: Symbol,
-    postSymbol: Symbol? = null,
-    block: BodyBuilder<T>
-) {
+inline fun CodeBuilder.block(symbol: Symbol, postSymbol: Symbol? = null, block: BodyBuilder) {
     addSymbol(block(this, symbol, postSymbol, block))
 }
 
-inline fun <T : LangFactory> block(
-    parent: CodeBuilder<T>,
+inline fun block(
+    parent: CodeBuilder,
     symbol: Symbol,
     postSymbol: Symbol? = null,
-    block: BodyBuilder<T>
+    block: BodyBuilder
 ) = BlockSymbol(parent, symbol, postSymbol).apply(block)

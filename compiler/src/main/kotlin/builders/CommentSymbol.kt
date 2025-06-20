@@ -34,4 +34,4 @@ class CommentSymbol(private val content: String) : Symbol {
     override fun toString(): String = "COMMENT[$content]"
 }
 
-inline fun <T : LangFactory> CodeBuilder<T>.comment(str: String) = addSymbol(CommentSymbol(str))
+inline fun CodeBuilder.comment(str: String) = addSymbol(CommentSymbol(str))

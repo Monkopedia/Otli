@@ -190,6 +190,10 @@ class Raw(val content: String) : Symbol {
     override fun build(builder: CodeStringBuilder) {
         builder.append(content)
     }
+
+    override fun toString(): String {
+        return content
+    }
 }
 
 class RawCast(val content: String, val target: Symbol) :

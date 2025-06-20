@@ -1,7 +1,6 @@
 package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.CodeBuilder
-import com.monkopedia.otli.builders.LangFactory
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
@@ -10,16 +9,16 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 
-fun <T : LangFactory> CodegenVisitor<T>.buildString(
+fun CodegenVisitor.buildString(
     expression: IrStringConcatenation,
-    data: CodeBuilder<T>
+    data: CodeBuilder
 ): Symbol {
     error("Not implemented")
 }
 
-fun <T : LangFactory> CodegenVisitor<T>.convertArgs(
+fun CodegenVisitor.convertArgs(
     expression: IrStringConcatenation,
-    data: CodeBuilder<T>
+    data: CodeBuilder
 ): Array<Symbol> {
     val mappings = expression.arguments.joinToString("") {
         when (it) {
@@ -93,7 +92,7 @@ fun <T : LangFactory> CodegenVisitor<T>.convertArgs(
         } else if (resolvedType.isString) {
             it.accept(this, data)
         } else {
-            buildCall("toString", emptyList(), data, receiver = it)
+            buildCall(null, "toString", emptyList(), data, receiver = it)
         }
     }
     return (listOf(Raw(mappings)) + arguments).toTypedArray()

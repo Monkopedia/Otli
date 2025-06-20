@@ -13,29 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("NOTHING_TO_INLINE")
+
 package com.monkopedia.otli.builders
 
+inline fun funSig(name: String, retType: Symbol?, args: List<LocalVar>): Symbol =
+    CFunctionSignature(name, retType ?: CType("void"), args)
 
-inline fun <T : LangFactory> CodeBuilder<T>.funSig(
-    name: String,
-    retType: Symbol?,
-    args: List<LocalVar>
-): Symbol = factory.funSig(name, retType, args)
-
-sealed class FunctionBuilder<T : LangFactory>(
-    var name: String? = null,
+sealed class FunctionBuilder(
+    var name: Symbol? = null,
     var retType: Symbol? = null,
-    val functionBuilder: CodeBuilder<T>
+    val functionBuilder: CodeBuilder
 ) {
     protected val args = mutableListOf<LocalVar>()
-    abstract val body: CodeBuilder<T>?
+    abstract val body: CodeBuilder?
 
-    inline fun body(block: BodyBuilder<T>) {
-        body!!.apply(block)
+    inline fun body(block: BodyBuilder) {
+        body?.apply(block)
     }
 
-    fun define(name: String, type: ResolvedType): LocalVar = functionBuilder
+    fun define(objKey: Any, name: String, type: ResolvedType): LocalVar = functionBuilder
         .define(
+            objKey,
             name,
             type
         ).also(args::add)
@@ -47,8 +46,8 @@ private object EndFunction : Symbol {
     }
 }
 
-open class FunctionSymbol<T : LangFactory>(functionBuilder: CodeBuilder<T>) :
-    FunctionBuilder<T>(functionBuilder = functionBuilder),
+open class FunctionSymbol(functionBuilder: CodeBuilder) :
+    FunctionBuilder(functionBuilder = functionBuilder),
     Symbol,
     SymbolContainer {
     private val block = BlockSymbol(
@@ -59,16 +58,16 @@ open class FunctionSymbol<T : LangFactory>(functionBuilder: CodeBuilder<T>) :
     lateinit var signature: Symbol
     val symbol: Symbol
         get() = block
-    override val body: CodeBuilder<T>
+    override val body: CodeBuilder
         get() = block
 
     override val symbols: List<Symbol>
-        get() = listOf(signature)
+        get() = listOfNotNull(signature, name)
 
     open fun init() {
         signature =
-            functionBuilder.funSig(
-                functionBuilder.scope.allocateName(name ?: error("Name was not specified")),
+            funSig(
+                functionBuilder.scope.allocateName(name?.toString() ?: error("Name was not specified")),
                 retType,
                 args
             )
@@ -82,32 +81,31 @@ open class FunctionSymbol<T : LangFactory>(functionBuilder: CodeBuilder<T>) :
     override fun toString(): String = signature.toString()
 }
 
-inline fun <T : LangFactory> CodeBuilder<T>.function(
-    functionBuilder: FunctionBuilder<T>.() -> Unit
+inline fun CodeBuilder.function(
+    functionBuilder: FunctionBuilder.() -> Unit
 ): Symbol {
     val builder =
         functionScope {
             FunctionSymbol(this).also(functionBuilder)
         }
     builder.init()
-    return +builder.symbol
+    return builder.symbol
 }
 
-class FunctionDeclarationSymbol<T : LangFactory>(functionBuilder: CodeBuilder<T>) :
-    FunctionBuilder<T>(functionBuilder = functionBuilder) {
-    override val body: CodeBuilder<T>?
+class FunctionDeclarationSymbol(functionBuilder: CodeBuilder) :
+    FunctionBuilder(functionBuilder = functionBuilder) {
+    override val body: CodeBuilder?
         get() = null
 
-    fun init(): Symbol =
-        functionBuilder.funSig(name ?: error("Name was not specified"), retType, args)
+    fun init(): Symbol = funSig(name?.toString() ?: error("Name was not specified"), retType, args)
 }
 
-inline fun <T : LangFactory> CodeBuilder<T>.functionDeclaration(
-    functionBuilder: FunctionBuilder<T>.() -> Unit
+inline fun CodeBuilder.functionDeclaration(
+    functionBuilder: FunctionBuilder.() -> Unit
 ): Symbol {
     val builder =
         functionScope {
             FunctionDeclarationSymbol(this).also(functionBuilder)
         }
-    return +builder.init()
+    return builder.init()
 }

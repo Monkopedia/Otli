@@ -22,9 +22,40 @@ class GroupSymbol :
         get() = symbolList
 }
 
-class FileSymbol(val fileName: String, val groupSymbol: GroupSymbol = GroupSymbol()) :
-    Symbol by groupSymbol,
-    SymbolContainer by groupSymbol {
+class HeaderSymbol(
+    override val parent: CodeBuilder,
+    val fileName: String,
+    val groupSymbol: GroupSymbol = GroupSymbol()
+) : Symbol by groupSymbol, SymbolContainer by groupSymbol, CodeBuilder {
+
+    override fun addSymbol(symbol: Symbol) {
+        groupSymbol.symbolList.add(symbol)
+    }
+
+    override fun build(builder: CodeStringBuilder) {
+        val defName = "__${fileName.uppercase().replace(".", "_")}__"
+        builder.append("#ifndef $defName\n")
+        builder.append("#define $defName\n")
+        groupSymbol.build(builder)
+        builder.append("#endif // $defName\n")
+    }
+}
+
+class FileSymbol(
+    override val parent: CodeBuilder,
+    val fileName: String,
+    val groupSymbol: GroupSymbol = GroupSymbol()
+) : Symbol by groupSymbol,
+    SymbolContainer by groupSymbol,
+    CodeBuilder {
+
+    override fun addSymbol(symbol: Symbol) {
+        groupSymbol.symbolList.add(symbol)
+    }
+
+    init {
+        groupSymbol.symbolList.add(IncludeBlock(groupSymbol))
+    }
 
     override fun build(builder: CodeStringBuilder) {
         builder.file(fileName) {

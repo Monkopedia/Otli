@@ -2,13 +2,13 @@ package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
-import com.monkopedia.otli.builders.LangFactory
 import com.monkopedia.otli.builders.Parens
 import com.monkopedia.otli.builders.RawCast
 import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.op
+import com.monkopedia.otli.builders.reference
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -19,12 +19,10 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
-fun <T : LangFactory> CodegenVisitor<T>.buildCall(
-    expression: IrCall,
-    data: CodeBuilder<T>
-): Symbol {
+fun CodegenVisitor.buildCall(expression: IrCall, data: CodeBuilder): Symbol {
     val owner = expression.symbol.owner
     return buildCall(
+        expression,
         owner.name.asString(),
         expression.arguments,
         data,
@@ -37,10 +35,11 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
     )
 }
 
-fun <T : LangFactory> CodegenVisitor<T>.buildCall(
+fun CodegenVisitor.buildCall(
+    expression: IrCall?,
     name: String,
     arguments: List<IrExpression?>,
-    data: CodeBuilder<T>,
+    data: CodeBuilder,
     returnType: IrType? = null,
     pkg: String = "",
     isOperator: Boolean = false,
@@ -59,6 +58,15 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
         }
     }
     if (pkg.startsWith("kotlin")) {
+        if (pkg.startsWith("kotlin.test")) {
+            return buildTestMethod(
+                expression,
+                name,
+                arguments,
+                data,
+                pkg,
+            )
+        }
         return when (name) {
             "toByte",
             "toShort",
@@ -88,7 +96,7 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
     if (isPropertyAccessor) {
         val symbol = correspondingProperty?.let { declarationLookup[it] }
             ?: error("Cannot find declaration for $correspondingProperty")
-        return Reference(symbol)
+        return symbol.reference
     }
     return Call(
         name,
@@ -97,9 +105,9 @@ fun <T : LangFactory> CodegenVisitor<T>.buildCall(
     )
 }
 
-private fun <T : LangFactory> CodegenVisitor<T>.operatorSymbol(
+private fun CodegenVisitor.operatorSymbol(
     arguments: List<IrExpression?>,
-    data: CodeBuilder<T>,
+    data: CodeBuilder,
     operand: String
 ): Symbol {
     arguments.takeIf { it.size == 2 }?.takeIf {

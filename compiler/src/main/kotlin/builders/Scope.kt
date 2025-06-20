@@ -19,20 +19,23 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-class Scope<T : LangFactory>(internal val parent: Scope<T>? = null) {
+class Scope(internal val parent: Scope? = null) {
     private val names =
         mutableSetOf(
             "object"
         )
+    private val keyedMap = mutableMapOf<Any, String>()
 
     private fun isUsed(name: String): Boolean = names.contains(name) || parent?.isUsed(name) == true
 
-    fun allocateName(desiredName: String): String {
+    fun allocateName(desiredName: String, objKey: Any? = null): String {
+        objKey?.let(keyedMap::get)?.let { return it }
         if (desiredName.isEmpty()) return allocateName("v")
         if (isUsed(desiredName)) {
-            return allocateName("_$desiredName")
+            return allocateName("_$desiredName", objKey)
         }
         names.add(desiredName)
+        objKey?.let { keyedMap[it] = desiredName }
         return desiredName
     }
 
@@ -41,27 +44,30 @@ class Scope<T : LangFactory>(internal val parent: Scope<T>? = null) {
     }${if (names.size > 5) "..." else ""})"
 }
 
-val <T : LangFactory> CodeBuilder<T>.base: CodeBuilderBase<T>
+val CodeBuilder.base: CCodeBuilder
     get() =
-        (this as? CodeBuilderBase<T>)
-            ?: (this as? BlockSymbol<T>)?.parent?.base
+        (this as? CCodeBuilder)
+            ?: this.parent?.base
             ?: error("Dangling builder $this")
 
-val <T : LangFactory> CodeBuilder<T>.scope: Scope<T>
+val CodeBuilder.scope: Scope
     get() = base.currentScope
 
-fun <T : LangFactory> CodeBuilder<T>.define(
+fun CodeBuilder.define(
+    objKey: Any,
     desiredName: String,
     type: ResolvedType,
     initializer: Symbol? = null,
+    isArray: Boolean = false,
+    arraySize: Int = 0,
     constructorArgs: List<Symbol>? = null
 ): LocalVar {
-    val name = scope.allocateName(desiredName)
-    return factory.define(name, type, initializer, constructorArgs)
+    val name = scope.allocateName(desiredName, objKey)
+    return CLocalVar(name, type, initializer, constructorArgs, isArray, arraySize)
 }
 
 @OptIn(ExperimentalContracts::class)
-inline fun <T : LangFactory, R> CodeBuilder<T>.functionScope(inScope: CodeBuilder<T>.() -> R): R {
+inline fun <R> CodeBuilder.functionScope(inScope: CodeBuilder.() -> R): R {
     contract {
         callsInPlace(inScope, InvocationKind.EXACTLY_ONCE)
     }
