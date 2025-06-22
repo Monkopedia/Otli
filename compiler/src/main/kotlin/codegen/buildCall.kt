@@ -11,6 +11,7 @@ import com.monkopedia.otli.builders.RawCast
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.define
+import com.monkopedia.otli.builders.dot
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -109,13 +110,23 @@ fun CodegenVisitor.buildCall(
                 arguments[1]!!.accept(this@buildCall, data)
             )
 
+            "hashCode" -> {
+                if (receiver?.type?.classFqName?.asString() == "kotlin.Int") {
+                    receiver.accept(this@buildCall, data)
+                } else {
+                    error("Unsupported type ${receiver?.type?.classFqName}")
+                }
+            }
+
             else -> error("Unhandled stdlib method $pkg.$name")
         }
     }
     if (isPropertyAccessor) {
-        val symbol = correspondingProperty?.let { declarationLookup[it] }
-            ?: error("Cannot find declaration for $correspondingProperty")
-        return symbol.reference
+        val symbol = correspondingProperty?.let {
+            declarationLookup[it] ?: it.backingField?.let(declarationLookup::get)
+        } ?: error("Cannot find declaration for $correspondingProperty")
+        return expression?.dispatchReceiver?.accept(this, data)?.dot(symbol.reference)
+            ?: symbol.reference
     }
     return Call(
         name,
@@ -192,10 +203,7 @@ private fun CodegenVisitor.buildRangeMethod(
     else -> error("Unhandled stdlib method kotlin.ranges.$name")
 }
 
-private fun CodegenVisitor.buildIterator(
-    data: CodeBuilder,
-    receiver: IrExpression?
-): Symbol {
+private fun CodegenVisitor.buildIterator(data: CodeBuilder, receiver: IrExpression?): Symbol {
     val receiverType = receiver?.type ?: error("iterator not supported as generic type")
     return when (receiverType.classFqName?.asString()) {
         "kotlin.ranges.IntRange" -> IntRangeIterator(
@@ -207,18 +215,12 @@ private fun CodegenVisitor.buildIterator(
     }
 }
 
-private fun CodegenVisitor.buildHasNext(
-    data: CodeBuilder,
-    receiver: IrExpression?
-): Symbol {
+private fun CodegenVisitor.buildHasNext(data: CodeBuilder, receiver: IrExpression?): Symbol {
     val iteratorHandler = getBoundIterator(receiver, data)
     return iteratorHandler.hasNext(data)
 }
 
-private fun CodegenVisitor.buildNext(
-    data: CodeBuilder,
-    receiver: IrExpression?
-): Symbol {
+private fun CodegenVisitor.buildNext(data: CodeBuilder, receiver: IrExpression?): Symbol {
     val iteratorHandler = getBoundIterator(receiver, data)
     return iteratorHandler.next(data)
 }

@@ -8,14 +8,14 @@ import com.monkopedia.otli.builders.FileSymbol
 import com.monkopedia.otli.builders.GroupSymbol
 import com.monkopedia.otli.builders.LocalVar
 import com.monkopedia.otli.builders.Raw
-import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.Return
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.block
+import com.monkopedia.otli.builders.dereference
+import com.monkopedia.otli.builders.dot
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
 import com.monkopedia.otli.builders.scopeBlock
-import kotlin.math.exp
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -108,7 +108,6 @@ import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 
@@ -117,6 +116,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     var currentFile: IrFile? = null
     var currentFunction: IrFunction? = null
     val testClasses = mutableListOf<IrClass>()
+    val thisScopes = mutableListOf<LocalVar>()
 
     override fun visitElement(element: IrElement, data: CodeBuilder): Symbol {
         error("Unsupported element type: ${element::class.simpleName}")
@@ -132,7 +132,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         if (declaration.isData) {
             buildStruct(declaration, data)
         } else {
-            if (declaration.declarations.all { it.hasTestDeclaration }) {
+            if (declaration.isTestClass) {
                 buildTest(declaration, data).also {
                     testClasses.add(declaration)
                 }
@@ -152,7 +152,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitFunction(declaration: IrFunction, data: CodeBuilder): Symbol {
         val lastFunction = currentFunction
         currentFunction = declaration
-        return buildFunction(declaration, data).also {
+        return buildFunction(declaration, data, this).also {
             currentFunction = lastFunction
         }
     }
@@ -163,10 +163,8 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitEnumEntry(declaration: IrEnumEntry, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitErrorDeclaration(
-        declaration: IrErrorDeclaration,
-        data: CodeBuilder
-    ): Symbol = visitDeclaration(declaration, data)
+    override fun visitErrorDeclaration(declaration: IrErrorDeclaration, data: CodeBuilder): Symbol =
+        visitDeclaration(declaration, data)
 
     override fun visitField(declaration: IrField, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
@@ -211,10 +209,8 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitTypeAlias(declaration: IrTypeAlias, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
-    override fun visitPackageFragment(
-        declaration: IrPackageFragment,
-        data: CodeBuilder
-    ): Symbol = visitElement(declaration, data)
+    override fun visitPackageFragment(declaration: IrPackageFragment, data: CodeBuilder): Symbol =
+        visitElement(declaration, data)
 
     override fun visitExternalPackageFragment(
         declaration: IrExternalPackageFragment,
@@ -222,9 +218,12 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     ): Symbol = visitPackageFragment(declaration, data)
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    override fun visitFile(declaration: IrFile, data: CodeBuilder): Symbol  {
-        declaration.accept(HeaderVisitor(), data)
-        return FileSymbol(data, declaration.packageFqName.pkgPrefix() + declaration.name + ".c").apply {
+    override fun visitFile(declaration: IrFile, data: CodeBuilder): Symbol {
+        declaration.accept(HeaderVisitor(this), data)
+        return FileSymbol(
+            data,
+            declaration.packageFqName.pkgPrefix() + declaration.name + ".c"
+        ).apply {
             val lastFile = currentFile
             currentFile = declaration
             groupSymbol.symbolList.addAll(
@@ -244,16 +243,15 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitExpressionBody(body: IrExpressionBody, data: CodeBuilder): Symbol =
         body.expression.accept(this@CodegenVisitor, data)
 
-    override fun visitBlockBody(body: IrBlockBody, data: CodeBuilder): Symbol =
-        block(data, Empty) {
-            body.statements.forEach { addSymbol(it.accept(this@CodegenVisitor, data)) }
-        }
+    override fun visitBlockBody(body: IrBlockBody, data: CodeBuilder): Symbol = block(data, Empty) {
+        body.statements.forEach { addSymbol(it.accept(this@CodegenVisitor, data)) }
+    }
 
     override fun visitDeclarationReference(
         expression: IrDeclarationReference,
         data: CodeBuilder
     ): Symbol = declarationLookup[expression.symbol.owner]?.reference
-        ?: error("Declaration not found")
+        ?: error("Declaration ${expression.symbol} not found")
 
     override fun visitMemberAccess(
         expression: IrMemberAccessExpression<*>,
@@ -289,12 +287,11 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         data: CodeBuilder
     ): Symbol = visitExpression(expression, data)
 
-    override fun visitBlock(expression: IrBlock, data: CodeBuilder): Symbol =
-        GroupSymbol().apply {
-            expression.statements.forEach {
-                symbolList.add(it.accept(this@CodegenVisitor, data))
-            }
+    override fun visitBlock(expression: IrBlock, data: CodeBuilder): Symbol = GroupSymbol().apply {
+        expression.statements.forEach {
+            symbolList.add(it.accept(this@CodegenVisitor, data))
         }
+    }
 
     override fun visitComposite(expression: IrComposite, data: CodeBuilder): Symbol =
         visitContainerExpression(expression, data)
@@ -405,13 +402,14 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         data: CodeBuilder
     ): Symbol = visitErrorExpression(expression, data)
 
-    override fun visitFieldAccess(
-        expression: IrFieldAccessExpression,
-        data: CodeBuilder
-    ): Symbol = visitDeclarationReference(expression, data)
+    override fun visitFieldAccess(expression: IrFieldAccessExpression, data: CodeBuilder): Symbol =
+        visitDeclarationReference(expression, data)
 
-    override fun visitGetField(expression: IrGetField, data: CodeBuilder): Symbol =
-        visitFieldAccess(expression, data)
+    override fun visitGetField(expression: IrGetField, data: CodeBuilder): Symbol {
+        return expression.receiver?.accept(this, data)
+            ?.dot(visitDeclarationReference(expression, data))
+            ?: visitDeclarationReference(expression, data)
+    }
 
     override fun visitSetField(expression: IrSetField, data: CodeBuilder): Symbol =
         visitFieldAccess(expression, data)
@@ -419,15 +417,16 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitFunctionExpression(
         expression: IrFunctionExpression,
         data: CodeBuilder
-    ): Symbol =
-        if (expression.function.returnType.isUnit()) {
-            data.scopeBlock {
-                +(expression.function.body?.accept(this@CodegenVisitor, this)
-                    ?: error("Function is missing the body"))
-            }
-        } else {
-            visitExpression(expression, data)
+    ): Symbol = if (expression.function.returnType.isUnit()) {
+        data.scopeBlock {
+            +(
+                expression.function.body?.accept(this@CodegenVisitor, this)
+                    ?: error("Function is missing the body")
+                )
         }
+    } else {
+        visitExpression(expression, data)
+    }
 
     override fun visitGetClass(expression: IrGetClass, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
@@ -466,8 +465,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitTry(aTry: IrTry, data: CodeBuilder): Symbol = visitExpression(aTry, data)
 
-    override fun visitCatch(aCatch: IrCatch, data: CodeBuilder): Symbol =
-        visitElement(aCatch, data)
+    override fun visitCatch(aCatch: IrCatch, data: CodeBuilder): Symbol = visitElement(aCatch, data)
 
     override fun visitTypeOperator(expression: IrTypeOperatorCall, data: CodeBuilder): Symbol =
         if (expression.operator == IrTypeOperator.IMPLICIT_COERCION_TO_UNIT) {
@@ -476,15 +474,16 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
             error("Unsupported opperator ${expression.argument}")
         }
 
-    override fun visitValueAccess(
-        expression: IrValueAccessExpression,
-        data: CodeBuilder
-    ): Symbol =
+    override fun visitValueAccess(expression: IrValueAccessExpression, data: CodeBuilder): Symbol =
         declarationLookup[expression.symbol.owner]?.reference
-            ?: error("$expression has not been mapped")
+            ?: error("${expression.symbol} has not been mapped")
 
     override fun visitGetValue(expression: IrGetValue, data: CodeBuilder): Symbol =
-        visitValueAccess(expression, data)
+        if (expression.symbol.owner.name.asString() == "<this>") {
+            thisScopes.last().dereference
+        } else {
+            visitValueAccess(expression, data)
+        }
 
     override fun visitSetValue(expression: IrSetValue, data: CodeBuilder): Symbol =
         // TOD: Require not iterator
@@ -504,4 +503,13 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitElseBranch(branch: IrElseBranch, data: CodeBuilder): Symbol =
         visitBranch(branch, data)
+}
+
+inline fun <T> CodegenVisitor.withThisScope(thiz: LocalVar, exec: () -> T): T {
+    thisScopes.add(thiz)
+    try {
+        return exec()
+    } finally {
+        thisScopes.removeLast()
+    }
 }

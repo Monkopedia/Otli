@@ -56,6 +56,7 @@ open class FunctionSymbol(functionBuilder: CodeBuilder) :
         EndFunction
     )
     lateinit var signature: Symbol
+    var nameSymbol: Any? = null
     val symbol: Symbol
         get() = block
     override val body: CodeBuilder
@@ -67,7 +68,10 @@ open class FunctionSymbol(functionBuilder: CodeBuilder) :
     open fun init() {
         signature =
             funSig(
-                functionBuilder.scope.allocateName(name?.toString() ?: error("Name was not specified")),
+                functionBuilder.scope.allocateName(
+                    name?.toString() ?: error("Name was not specified"),
+                    nameSymbol
+                ),
                 retType,
                 args
             )
@@ -82,14 +86,17 @@ open class FunctionSymbol(functionBuilder: CodeBuilder) :
 }
 
 inline fun CodeBuilder.function(
+    isHeader: Boolean = false,
     functionBuilder: FunctionBuilder.() -> Unit
-): Symbol {
+): Symbol = if (isHeader) {
+    functionDeclaration(functionBuilder)
+} else {
     val builder =
         functionScope {
             FunctionSymbol(this).also(functionBuilder)
         }
     builder.init()
-    return builder.symbol
+    builder.symbol
 }
 
 class FunctionDeclarationSymbol(functionBuilder: CodeBuilder) :
@@ -100,9 +107,7 @@ class FunctionDeclarationSymbol(functionBuilder: CodeBuilder) :
     fun init(): Symbol = funSig(name?.toString() ?: error("Name was not specified"), retType, args)
 }
 
-inline fun CodeBuilder.functionDeclaration(
-    functionBuilder: FunctionBuilder.() -> Unit
-): Symbol {
+inline fun CodeBuilder.functionDeclaration(functionBuilder: FunctionBuilder.() -> Unit): Symbol {
     val builder =
         functionScope {
             FunctionDeclarationSymbol(this).also(functionBuilder)

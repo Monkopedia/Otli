@@ -9,28 +9,27 @@ import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.function
-import com.monkopedia.otli.builders.functionDeclaration
 import com.monkopedia.otli.builders.type
+import com.monkopedia.otli.type.WrappedType.Companion.pointerTo
 import org.jetbrains.kotlin.ir.backend.js.utils.isDispatchReceiver
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
 
-fun CodegenVisitor.buildFunction(expression: IrFunction, data: CodeBuilder): Symbol {
+fun buildFunction(
+    expression: IrFunction,
+    data: CodeBuilder,
+    visitor: CodegenVisitor?,
+    isHeader: Boolean = false
+): Symbol {
     if (expression.extensionReceiverParameter != null) {
         error("Extension receivers are not yet supported.")
     }
 
-    return data.function {
-        buildFunction(this, expression, this@buildFunction)
-    }
-}
-
-fun buildFunctionDeclaration(expression: IrFunction, data: CodeBuilder): Symbol {
-    return data.functionDeclaration {
-        buildFunction(this, expression, null)
+    return data.function(isHeader = isHeader) {
+        buildFunction(this, expression, visitor)
     }
 }
 
@@ -41,6 +40,28 @@ private fun buildFunction(
 ) {
     builder.name = methodName(expression)
     builder.retType = type(ResolvedType(expression.returnType))
+    val disptachReceiverType = expression.dispatchReceiverParameter?.type
+    if (disptachReceiverType != null &&
+        disptachReceiverType.classOrNull?.owner?.isTestClass == false
+    ) {
+        val thiz = builder.define(
+            expression.dispatchReceiverParameter to "thiz",
+            "thiz",
+            pointerTo(ResolvedType(disptachReceiverType))
+        )
+        visitor?.withThisScope(thiz) {
+            buildFunctionInner(expression, builder, visitor)
+        }
+        return
+    }
+    buildFunctionInner(expression, builder, visitor)
+}
+
+private fun buildFunctionInner(
+    expression: IrFunction,
+    builder: FunctionBuilder,
+    visitor: CodegenVisitor?
+) {
     expression.parameters.filter { !it.isDispatchReceiver }.map { arg ->
         builder.define(arg, arg.name.asString(), ResolvedType(arg.type)).also {
             visitor?.declarationLookup[arg] = it

@@ -73,6 +73,8 @@ val IrDeclaration.hasTestDeclaration: Boolean
             this is IrProperty ||
             (this is IrConstructor && this.parameters.isEmpty())
         )
+val IrClass.isTestClass: Boolean
+    get() = declarations.all { it.hasTestDeclaration }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 fun CodegenVisitor.buildTest(cls: IrClass, data: CodeBuilder): Symbol = GroupSymbol().apply {

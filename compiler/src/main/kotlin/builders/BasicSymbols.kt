@@ -37,7 +37,7 @@ inline val LocalVar.reference: Symbol
         ?: (this as? IteratorSymbol)?.let { IteratorReference(it, this) }
         ?: Reference(this)
 
-class Dereference(private val arg: Symbol) :
+class Dereference(val arg: Symbol) :
     Symbol,
     SymbolContainer {
     override val symbols: List<Symbol>
@@ -176,9 +176,10 @@ class Assign(
     }
 }
 
-class Op(private val operand: String, private val first: Symbol, private val second: Symbol) :
+data class Op(val operand: String, private val first: Symbol, private val second: Symbol) :
     Symbol,
     SymbolContainer {
+
     override val symbols: List<Symbol>
         get() = listOf(first, second)
 
@@ -191,7 +192,8 @@ class Op(private val operand: String, private val first: Symbol, private val sec
 
 inline fun Symbol.op(operand: String, other: Symbol): Symbol = Op(operand, this, other)
 
-inline infix fun Symbol.dot(other: Symbol): Symbol = Dot(this, other)
+inline infix fun Symbol.dot(other: Symbol): Symbol =
+    if (this is Dereference) this.arg.arrow(other) else Dot(this, other)
 
 inline infix fun Symbol.arrow(other: Symbol): Symbol = Arrow(this, other)
 
@@ -201,6 +203,30 @@ inline fun Symbol.assign(other: Symbol, plusEqual: Boolean): Symbol = Assign(thi
 
 inline fun Symbol.postfix(symbol: String) = Postfix(this, symbol)
 inline fun Symbol.prefix(symbol: String) = Prefix(this, symbol)
+
+inline fun CodeBuilder.not(symbol: Symbol): Symbol =
+    if (symbol is Op) {
+        if (symbol.operand == "==") {
+            symbol.copy(operand = "!=")
+        } else if (symbol.operand == "!=") {
+            symbol.copy(operand = "==")
+        } else {
+            Not(symbol)
+        }
+    } else {
+        Not(symbol)
+    }
+
+data class Not(val base: Symbol) : Symbol, SymbolContainer {
+    override val symbols: List<Symbol>
+        get() = listOf(base)
+
+    override fun build(builder: CodeStringBuilder) {
+        builder.append("!(")
+        base.build(builder)
+        builder.append(')')
+    }
+}
 
 class Prefix(val symbol: Symbol, val prefix: String) :
     Symbol,
