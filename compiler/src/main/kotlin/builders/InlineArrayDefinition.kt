@@ -25,3 +25,16 @@ inline fun buildArray(builder: MutableList<Symbol>.() -> Unit): Symbol = buildLi
 val NULL = Raw("NULL")
 
 fun nullArray(): Symbol = buildArray { add(NULL) }
+
+data class Index(val base: Symbol, val index: Symbol): Symbol, SymbolContainer {
+    override val symbols: List<Symbol>
+        get() = listOf(base, index)
+
+    override fun build(builder: CodeStringBuilder) {
+        base.build(builder)
+        builder.append("[")
+        index.build(builder)
+        builder.append("]")
+    }
+
+}

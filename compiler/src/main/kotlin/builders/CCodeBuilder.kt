@@ -15,11 +15,15 @@
  */
 package com.monkopedia.otli.builders
 
+import com.monkopedia.otli.codegen.BoundIterator
+import com.monkopedia.otli.codegen.IteratorSymbol
+
 class CFunctionSignature(
     private val name: String,
     private val retType: Symbol,
     private val args: List<LocalVar>
-) : Symbol, SymbolContainer {
+) : Symbol,
+    SymbolContainer {
     override val symbols: List<Symbol>
         get() = args + retType
 
@@ -38,16 +42,31 @@ class CFunctionSignature(
     }
 }
 
-class CLocalVar(
+class CLocalVarIterator(
+    private val iterator: IteratorSymbol,
+    name: String,
+    type: ResolvedType,
+    initializer: Symbol?,
+    constructorArgs: List<Symbol>?,
+    isArrayType: Boolean = type.isArray,
+    arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0
+) : CLocalVar(name, type, initializer, constructorArgs, isArrayType, arraySize),
+    BoundIterator {
+    override fun hasNext(builder: CodeBuilder): Symbol = iterator.hasNext(this, builder)
+
+    override fun next(builder: CodeBuilder): Symbol = iterator.next(this, builder)
+}
+
+open class CLocalVar(
     override val name: String,
     val type: ResolvedType,
     private val initializer: Symbol?,
     private val constructorArgs: List<Symbol>?,
-    private val isArrayType: Boolean = false,
-    private val arraySize: Int = 0
+    private val isArrayType: Boolean = type.isArray,
+    private val arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0
 ) : LocalVar,
     SymbolContainer {
-    private val typeSymbol = CType(type)
+    private val typeSymbol = CType(if (type.isArray) type.elementType else type)
     override val symbols: List<Symbol>
         get() = listOfNotNull(typeSymbol, initializer) + constructorArgs.orEmpty()
     override var isExtern: Boolean = false
@@ -93,7 +112,9 @@ class CLocalVar(
     }
 }
 
-class CType(private val typeStr: String, private val include: Include? = null) : Symbol, Includes {
+class CType(private val typeStr: String, private val include: Include? = null) :
+    Symbol,
+    Includes {
     constructor(type: ResolvedType) : this(type.toString(), type.include)
 
     override val includes: List<Symbol>

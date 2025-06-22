@@ -108,6 +108,7 @@ import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 
@@ -251,12 +252,13 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitDeclarationReference(
         expression: IrDeclarationReference,
         data: CodeBuilder
-    ): Symbol = visitDeclarationReference(expression, data)
+    ): Symbol = declarationLookup[expression.symbol.owner]?.reference
+        ?: error("Declaration not found")
 
     override fun visitMemberAccess(
         expression: IrMemberAccessExpression<*>,
         data: CodeBuilder
-    ): Symbol = visitDeclarationReference(expression, data)
+    ): Symbol = error("Unsupported")
 
     override fun visitFunctionAccess(
         expression: IrFunctionAccessExpression,
@@ -264,7 +266,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     ): Symbol = visitMemberAccess(expression, data)
 
     override fun visitConstructorCall(expression: IrConstructorCall, data: CodeBuilder): Symbol =
-        visitFunctionAccess(expression, data)
+        buildConstructor(expression, data)
 
     override fun visitSingletonReference(
         expression: IrGetSingletonValue,
@@ -438,7 +440,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitLoop(loop: IrLoop, data: CodeBuilder): Symbol = visitExpression(loop, data)
 
     override fun visitWhileLoop(loop: IrWhileLoop, data: CodeBuilder): Symbol =
-        visitLoop(loop, data)
+        buildLoop(loop, data)
 
     override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: CodeBuilder): Symbol =
         visitLoop(loop, data)
@@ -478,13 +480,14 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         expression: IrValueAccessExpression,
         data: CodeBuilder
     ): Symbol =
-        declarationLookup[expression.symbol.owner as? IrDeclarationWithName]?.reference
+        declarationLookup[expression.symbol.owner]?.reference
             ?: error("$expression has not been mapped")
 
     override fun visitGetValue(expression: IrGetValue, data: CodeBuilder): Symbol =
         visitValueAccess(expression, data)
 
     override fun visitSetValue(expression: IrSetValue, data: CodeBuilder): Symbol =
+        // TOD: Require not iterator
         visitValueAccess(expression, data).op("=", expression.value.accept(this, data))
 
     override fun visitVararg(expression: IrVararg, data: CodeBuilder): Symbol =
@@ -502,4 +505,3 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitElseBranch(branch: IrElseBranch, data: CodeBuilder): Symbol =
         visitBranch(branch, data)
 }
-

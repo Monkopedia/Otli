@@ -22,7 +22,7 @@ import com.monkopedia.otli.builders.Include
 private val existingTypes = mutableMapOf<String, WrappedType>()
 
 abstract class WrappedType {
-//    abstract val cType: WrappedType
+    //    abstract val cType: WrappedType
     abstract val include: Include?
 
     open fun clone(): WrappedType = this
@@ -44,7 +44,7 @@ abstract class WrappedType {
     abstract val unconst: WrappedType
 
     companion object :
-        (String) -> WrappedType {
+            (String) -> WrappedType {
         const val LONG_DOUBLE_STR = "long double"
         val LONG_DOUBLE = WrappedTypeReference(LONG_DOUBLE_STR)
         val VOID = WrappedTypeReference("void")
@@ -53,6 +53,13 @@ abstract class WrappedType {
             if (type == "void") return VOID
             return existingTypes.getOrPut(type) {
                 if (type.startsWith("const ")) return const(invoke(type.substring("const ".length)))
+                if (type.endsWith("]")) {
+                    val splitPoint = type.indexOfLast { it == '[' }
+                    return arrayOf(
+                        invoke(type.substring(0, splitPoint)),
+                        type.substring(splitPoint + 1, type.length - 1).toIntOrNull()
+                    )
+                }
                 if (type.endsWith("*")) {
                     return pointerTo(invoke(type.substring(0, type.length - 1).trim()))
                 }
@@ -73,7 +80,8 @@ abstract class WrappedType {
 
         fun referenceTo(type: WrappedType): WrappedType = WrappedModifiedType(type, "&")
 
-        fun arrayOf(type: WrappedType): WrappedType = WrappedModifiedType(type, "[]")
+        fun arrayOf(type: WrappedType, size: Int? = null): WrappedType =
+            WrappedModifiedType(type, "[${size ?: ""}]")
 
         fun const(type: WrappedType): WrappedType {
             if (type.isConst) return type
@@ -83,6 +91,9 @@ abstract class WrappedType {
         val UNRESOLVABLE: WrappedTypeReference
             get() = WrappedTypeReference("unresolveable")
     }
+
+    abstract val elementType: WrappedType
+    abstract val arraySize: Int?
 }
 
 val WrappedType.isString: Boolean

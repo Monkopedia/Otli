@@ -16,6 +16,7 @@
 package com.monkopedia.otli.type
 
 import com.monkopedia.otli.builders.Include
+import kotlinx.serialization.modules.serializersModuleOf
 
 abstract class WrappedWrapper(val baseType: WrappedType) : WrappedType() {
     override val include: Include?
@@ -57,10 +58,19 @@ class WrappedModifiedType(baseType: WrappedType, val modifier: String) : Wrapped
         get() = ((this as? WrappedModifiedType)?.modifier == "*")
 
     override val isArray: Boolean
-        get() = modifier == "[]"
+        get() = (modifier.startsWith("[") && modifier.endsWith("]")) || baseType.isArray
+
+    override val arraySize: Int?
+        get() = baseType.arraySize ?: if (isArray) modifier.substring(1, modifier.length - 1)
+            .toIntOrNull() else null
 
     override val unreferenced: WrappedType
         get() = if (modifier == "&") baseType else error("Cannot unreference non-reference $this")
+    override val elementType: WrappedType
+        get() = if (baseType.isArray) WrappedModifiedType(
+            baseType.elementType,
+            modifier
+        ) else if (isArray) baseType else error("Type is not an array")
 
     override val isReference: Boolean
         get() = modifier == "&"
@@ -80,6 +90,10 @@ class WrappedPrefixedType(baseType: WrappedType, val modifier: String) : Wrapped
 //            "const" -> const(baseType.cType)
 //            else -> error("Don't know how to handle $modifier")
 //        }
+    override val elementType: WrappedType
+        get() = baseType.elementType
+    override val arraySize: Int?
+        get() = baseType.arraySize
 
     override val isNative: Boolean
         get() = baseType.isNative

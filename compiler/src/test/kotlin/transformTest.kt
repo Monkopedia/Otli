@@ -24,6 +24,11 @@ fun transformTest(
     }
 ) {
     val ir = OtliCompiler().compileCode(otliCode, file = file)
+    println(
+        buildString {
+            ir?.accept(DumpIrTreeVisitor(this), "")
+        }
+    )
     val builder = CCodeBuilder()
     ir?.accept(CodegenVisitor(), builder)?.let { builder.addSymbol(it) }
     verification(builder.files())

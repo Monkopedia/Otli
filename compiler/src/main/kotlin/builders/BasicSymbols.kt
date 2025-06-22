@@ -15,14 +15,27 @@
  */
 package com.monkopedia.otli.builders
 
-class Reference(private val arg: LocalVar) : Symbol {
+import com.monkopedia.otli.codegen.BoundIterator
+import com.monkopedia.otli.codegen.IteratorSymbol
+
+open class Reference(private val arg: LocalVar) : Symbol {
     override fun build(builder: CodeStringBuilder) {
         builder.append(arg.name)
     }
 }
 
+class IteratorReference(iterator: IteratorSymbol, arg: LocalVar) :
+    Reference(arg),
+    IteratorSymbol by iterator
+
+class BoundIteratorReference(iterator: BoundIterator, arg: LocalVar) :
+    Reference(arg),
+    BoundIterator by iterator
+
 inline val LocalVar.reference: Symbol
-    get() = Reference(this)
+    get() = (this as? BoundIterator)?.let { BoundIteratorReference(it, this) }
+        ?: (this as? IteratorSymbol)?.let { IteratorReference(it, this) }
+        ?: Reference(this)
 
 class Dereference(private val arg: Symbol) :
     Symbol,
@@ -186,14 +199,55 @@ inline infix fun Symbol.assign(other: Symbol): Symbol = Assign(this, other)
 
 inline fun Symbol.assign(other: Symbol, plusEqual: Boolean): Symbol = Assign(this, other, plusEqual)
 
+inline fun Symbol.postfix(symbol: String) = Postfix(this, symbol)
+inline fun Symbol.prefix(symbol: String) = Prefix(this, symbol)
+
+class Prefix(val symbol: Symbol, val prefix: String) :
+    Symbol,
+    SymbolContainer {
+
+    override val symbols: List<Symbol>
+        get() = listOf(symbol)
+
+    override fun build(builder: CodeStringBuilder) {
+        if (symbol is Reference || symbol is Dereference) {
+            builder.append(prefix)
+            symbol.build(builder)
+        } else {
+            builder.append('(')
+            builder.append(prefix)
+            symbol.build(builder)
+            builder.append(')')
+        }
+    }
+}
+
+class Postfix(val symbol: Symbol, val suffix: String) :
+    Symbol,
+    SymbolContainer {
+
+    override val symbols: List<Symbol>
+        get() = listOf(symbol)
+
+    override fun build(builder: CodeStringBuilder) {
+        if (symbol is Reference || symbol is Dereference) {
+            symbol.build(builder)
+            builder.append(suffix)
+        } else {
+            builder.append('(')
+            symbol.build(builder)
+            builder.append(suffix)
+            builder.append(')')
+        }
+    }
+}
+
 class Raw(val content: String) : Symbol {
     override fun build(builder: CodeStringBuilder) {
         builder.append(content)
     }
 
-    override fun toString(): String {
-        return content
-    }
+    override fun toString(): String = content
 }
 
 class RawCast(val content: String, val target: Symbol) :

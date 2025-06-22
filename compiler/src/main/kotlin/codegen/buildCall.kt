@@ -3,15 +3,16 @@ package com.monkopedia.otli.codegen
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.Included
+import com.monkopedia.otli.builders.Index
+import com.monkopedia.otli.builders.InlineArrayDefinition
 import com.monkopedia.otli.builders.Parens
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.RawCast
-import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
+import com.monkopedia.otli.builders.define
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
-import com.monkopedia.otli.builders.scopeBlock
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
@@ -58,6 +60,9 @@ fun CodegenVisitor.buildCall(
             "div" -> operatorSymbol(arguments, data, "/")
             "inc" -> operation(arguments, data, "+", Raw("1"))
             "dec" -> operation(arguments, data, "-", Raw("1"))
+            "iterator" -> buildIterator(data, receiver)
+            "hasNext" -> buildHasNext(data, receiver)
+            "next" -> buildNext(data, receiver)
 
             else -> error("Unsupported operator: $name")
         }
@@ -69,8 +74,11 @@ fun CodegenVisitor.buildCall(
                 name,
                 arguments,
                 data,
-                pkg,
+                pkg
             )
+        }
+        if (pkg.startsWith("kotlin.ranges")) {
+            return buildRangeMethod(receiver, expression, name, arguments, data, returnType, pkg)
         }
         return when (name) {
             "toByte",
@@ -131,7 +139,6 @@ private fun CodegenVisitor.operation(
     return Parens(symbol1.op(operand, other))
 }
 
-
 private fun CodegenVisitor.operatorSymbol(
     arguments: List<IrExpression?>,
     data: CodeBuilder,
@@ -147,4 +154,90 @@ private fun CodegenVisitor.operatorSymbol(
     val symbol2 = arguments[1]?.accept(this, data)
         ?: error("Lost child during resolution")
     return Parens(symbol1.op(operand, symbol2))
+}
+
+private fun CodegenVisitor.buildRangeMethod(
+    receiver: IrExpression?,
+    exp: IrCall?,
+    name: String,
+    arguments: List<IrExpression?>,
+    data: CodeBuilder,
+    returnType: IrType?,
+    pkg: String
+): Symbol = when (name) {
+    "<get-first>",
+    "<get-start>" -> Index(
+        receiver!!.accept(this@buildRangeMethod, data),
+        Raw("0")
+    )
+
+    "<get-last>",
+    "<get-endInclusive>" -> Index(
+        receiver!!.accept(this@buildRangeMethod, data),
+        Raw("1")
+    )
+
+    "isEmpty" -> {
+        val base = receiver!!.accept(this@buildRangeMethod, data)
+        Index(base, Raw("0")).op(">", Index(base, Raw("1")))
+    }
+
+    "until" -> {
+        InlineArrayDefinition(
+            arguments[0]!!.accept(this@buildRangeMethod, data),
+            arguments[1]!!.accept(this@buildRangeMethod, data)
+        )
+    }
+
+    else -> error("Unhandled stdlib method kotlin.ranges.$name")
+}
+
+private fun CodegenVisitor.buildIterator(
+    data: CodeBuilder,
+    receiver: IrExpression?
+): Symbol {
+    val receiverType = receiver?.type ?: error("iterator not supported as generic type")
+    return when (receiverType.classFqName?.asString()) {
+        "kotlin.ranges.IntRange" -> IntRangeIterator(
+            receiver.accept(this@buildIterator, data),
+            data
+        )
+
+        else -> error("iterator is not supported for type $receiverType")
+    }
+}
+
+private fun CodegenVisitor.buildHasNext(
+    data: CodeBuilder,
+    receiver: IrExpression?
+): Symbol {
+    val iteratorHandler = getBoundIterator(receiver, data)
+    return iteratorHandler.hasNext(data)
+}
+
+private fun CodegenVisitor.buildNext(
+    data: CodeBuilder,
+    receiver: IrExpression?
+): Symbol {
+    val iteratorHandler = getBoundIterator(receiver, data)
+    return iteratorHandler.next(data)
+}
+
+private fun CodegenVisitor.getBoundIterator(
+    receiver: IrExpression?,
+    data: CodeBuilder
+): BoundIterator {
+    val receiverType = receiver?.type ?: error("iterator not supported as generic type")
+    val symbol = receiver.accept(this, data)
+    val iteratorHandler = (symbol as? BoundIterator)
+        ?: (symbol as? IteratorSymbol)?.let {
+            data.define(
+                receiver,
+                "tmp_iter",
+                ResolvedType(receiverType),
+                it.initialize(data)
+            ).also(data::addSymbol) as? BoundIterator
+        }
+        ?: error("Cannot find iterator for $receiver")
+    return iteratorHandler
 }

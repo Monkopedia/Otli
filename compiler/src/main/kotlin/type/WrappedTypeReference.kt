@@ -31,7 +31,7 @@ private val NATIVE =
         "uintptr_t" to "stdint.h",
         "size_t" to "stdint.h",
         "void" to null,
-        "bool" to null,
+        "bool" to "stdbool.h",
         "char" to null,
         "signed char" to null,
         "unsigned char" to null,
@@ -48,7 +48,7 @@ private val NATIVE =
         "signed long long" to null,
         "unsigned long long" to null,
         "float" to null,
-        "double" to null
+        "double" to null,
     )
 
 @Serializable
@@ -59,16 +59,21 @@ data class WrappedTypeReference(val name: String) : WrappedType() {
         } else null
     override val isArray: Boolean
         get() = name.endsWith("]")
-    val arraySize: Int
+    override val arraySize: Int?
         get() {
-            require(isArray) {
-                "Can't get array size of non-array"
-            }
+            if (!isArray) return null
             val openIndex = name.indexOf("[")
             val closeIndex = name.indexOf("]")
             if (openIndex < 0 || closeIndex < 0) return -1
             if (openIndex + 1 == closeIndex) return -1
-            return name.substring(openIndex + 1, closeIndex).toInt()
+            return name.substring(openIndex + 1, closeIndex).toIntOrNull()
+        }
+    override val elementType: WrappedType
+        get() {
+            require (isArray) {
+                "Type is not an array"
+            }
+            return WrappedTypeReference(name.split("[").first())
         }
     override val coreType: String
         get() = name

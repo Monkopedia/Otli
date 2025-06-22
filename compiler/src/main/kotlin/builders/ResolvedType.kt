@@ -21,7 +21,9 @@ val nativeMaps = mapOf(
     "kotlin.Double" to "double",
     "kotlin.String" to "char *",
     "kotlin.Char" to "char",
-    "kotlin.Boolean" to "bool"
+    "kotlin.Boolean" to "bool",
+    "kotlin.ranges.IntRange" to "int32_t[2]",
+    "kotlin.collections.IntIterator" to "int32_t"
 )
 
 typealias ResolvedType = WrappedType

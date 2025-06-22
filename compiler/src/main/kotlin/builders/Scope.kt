@@ -15,6 +15,7 @@
  */
 package com.monkopedia.otli.builders
 
+import com.monkopedia.otli.codegen.IteratorSymbol
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -58,11 +59,22 @@ fun CodeBuilder.define(
     desiredName: String,
     type: ResolvedType,
     initializer: Symbol? = null,
-    isArray: Boolean = false,
-    arraySize: Int = 0,
+    isArray: Boolean = type.isArray,
+    arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0,
     constructorArgs: List<Symbol>? = null
 ): LocalVar {
     val name = scope.allocateName(desiredName, objKey)
+    if (initializer is IteratorSymbol) {
+        return CLocalVarIterator(
+            initializer,
+            name,
+            type,
+            initializer,
+            constructorArgs,
+            isArray,
+            arraySize
+        )
+    }
     return CLocalVar(name, type, initializer, constructorArgs, isArray, arraySize)
 }
 

@@ -7,6 +7,7 @@ import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.define
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.types.IrType
 
 fun CodegenVisitor.buildProperty(
