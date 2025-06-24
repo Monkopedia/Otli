@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -45,7 +46,7 @@ class HeaderVisitor(val parentVisitor: CodegenVisitor) : IrVisitor<Unit, CodeBui
     }
 
     override fun visitFunction(declaration: IrFunction, data: CodeBuilder) {
-        if (declaration.extensionReceiverParameter == null &&
+        if (declaration.parameters.none { it.kind == IrParameterKind.ExtensionReceiver } &&
             declaration.visibility.isVisibleOutside()
         ) {
             // Hack to avoid this for now

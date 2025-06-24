@@ -36,7 +36,7 @@ fun CodegenVisitor.buildCall(expression: IrCall, data: CodeBuilder): Symbol {
         owner.getPackageFragment().packageFqName.asString(),
         owner.isOperator,
         owner.isPropertyAccessor,
-        expression.extensionReceiver ?: expression.dispatchReceiver,
+        expression.dispatchReceiver,
         owner.correspondingPropertySymbol?.owner
     )
 }
@@ -91,7 +91,7 @@ fun CodegenVisitor.buildCall(
             "toUInt",
             "toULong" -> RawCast(
                 ResolvedType(returnType ?: error("stdlib method missing return")).toString(),
-                receiver?.accept(this, data)
+                (arguments.singleOrNull() ?: receiver)?.accept(this, data)
                     ?: error("Missing receiver")
             )
 

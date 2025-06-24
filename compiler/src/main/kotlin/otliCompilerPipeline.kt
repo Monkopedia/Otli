@@ -1,6 +1,5 @@
 package com.monkopedia.otli
 
-import java.nio.file.Paths
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.fileBelongsToModuleForPsi
 import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
@@ -11,7 +10,6 @@ import org.jetbrains.kotlin.cli.common.prepareJsSessions
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
-import org.jetbrains.kotlin.fir.BinaryModuleData
 import org.jetbrains.kotlin.fir.DependencyListForCliModule
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
@@ -40,11 +38,10 @@ inline fun <F> compileModuleToAnalyzedFir(
         moduleStructure.compilerConfiguration.get(CommonConfigurationKeys.MODULE_NAME)!!
     val escapedMainModuleName = Name.special("<$mainModuleName>")
     val platform = NativePlatforms.unspecifiedNativePlatform
-    val binaryModuleData = BinaryModuleData.initialize(escapedMainModuleName, platform)
     val dependencyList =
-        DependencyListForCliModule.build(binaryModuleData) {
-            dependencies(libraries.map { Paths.get(it).toAbsolutePath() })
-            friendDependencies(friendLibraries.map { Paths.get(it).toAbsolutePath() })
+        DependencyListForCliModule.build(escapedMainModuleName) {
+            dependencies(libraries)
+            friendDependencies(friendLibraries)
             // TODO: !!! dependencies module data?
         }
 
@@ -60,7 +57,6 @@ inline fun <F> compileModuleToAnalyzedFir(
             extensionRegistrars,
             isCommonSource = isCommonSource,
             fileBelongsToModule = fileBelongsToModule,
-            lookupTracker,
             icData = null
         )
 

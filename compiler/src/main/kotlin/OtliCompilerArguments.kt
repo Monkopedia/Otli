@@ -1,17 +1,23 @@
 package com.monkopedia.otli
 
+import com.intellij.util.xmlb.annotations.Transient
 import kotlin.collections.set
 import org.jetbrains.kotlin.cli.common.arguments.Argument
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArgumentsConfigurator
 import org.jetbrains.kotlin.cli.common.arguments.CommonKlibBasedCompilerArguments
+import org.jetbrains.kotlin.cli.common.arguments.CommonKlibBasedCompilerArgumentsConfigurator
 import org.jetbrains.kotlin.cli.common.arguments.DefaultValue
 import org.jetbrains.kotlin.cli.common.arguments.Freezable
 import org.jetbrains.kotlin.cli.common.arguments.GradleInputTypes
 import org.jetbrains.kotlin.cli.common.arguments.GradleOption
+import org.jetbrains.kotlin.cli.common.arguments.K2JSCompilerArguments
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.AnalysisFlag
 import org.jetbrains.kotlin.config.AnalysisFlags.allowFullyQualifiedNameInKClass
 import org.jetbrains.kotlin.config.ApiVersion
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 
@@ -102,27 +108,29 @@ class OtliCompilerArguments : CommonKlibBasedCompilerArguments() {
             field = value
         }
 
-    override fun configureAnalysisFlags(
-        collector: MessageCollector,
-        languageVersion: LanguageVersion
-    ): MutableMap<AnalysisFlag<*>, Any> =
-        super.configureAnalysisFlags(collector, languageVersion).also {
-            it[allowFullyQualifiedNameInKClass] = false
-        }
-
-    override fun checkIrSupport(
-        languageVersionSettings: LanguageVersionSettings,
-        collector: MessageCollector
-    ) {
-        if (languageVersionSettings.languageVersion < LanguageVersion.KOTLIN_1_4 ||
-            languageVersionSettings.apiVersion < ApiVersion.KOTLIN_1_4
-        ) {
-            collector.report(
-                CompilerMessageSeverity.ERROR,
-                "Otli backend cannot be used with language or API version below 1.4"
-            )
-        }
-    }
+    @get:Transient
+    @field:kotlin.jvm.Transient
+    override val configurator: CommonCompilerArgumentsConfigurator = OtliCompilerArgumentsConfigurator()
 
     override fun copyOf(): Freezable = copyOtliCompilerArguments(this, OtliCompilerArguments())
 }
+
+class OtliCompilerArgumentsConfigurator : CommonKlibBasedCompilerArgumentsConfigurator() {
+    override fun configureAnalysisFlags(
+        arguments: CommonCompilerArguments,
+        collector: MessageCollector,
+        languageVersion: LanguageVersion
+    ): MutableMap<AnalysisFlag<*>, Any> =
+        super.configureAnalysisFlags(arguments, collector, languageVersion).also {
+            it[allowFullyQualifiedNameInKClass] = false
+        }
+
+    override fun configureExtraLanguageFeatures(
+        arguments: CommonCompilerArguments,
+        map: HashMap<LanguageFeature, LanguageFeature.State>
+    ) {
+        super.configureExtraLanguageFeatures(arguments, map)
+    }
+
+}
+

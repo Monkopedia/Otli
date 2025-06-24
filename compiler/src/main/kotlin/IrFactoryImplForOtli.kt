@@ -25,5 +25,5 @@ class IrFactoryImplForOtli :
 }
 
 private var IrDeclaration.signatureForOtliIc: IdSignature? by irAttribute(
-    followAttributeOwner = false
+    copyByDefault = false
 )

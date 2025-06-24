@@ -17,8 +17,8 @@ import org.jetbrains.kotlin.descriptors.ClassifierDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -27,14 +27,13 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.serialization.DescriptorSerializer
 
-
 // TODO: need a refactoring between IncrementalSerializer and MonolithicSerializer.
 class KlibMetadataIncrementalSerializer(
     private val ktFiles: List<KtFile>,
     private val bindingContext: BindingContext,
     private val moduleDescriptor: ModuleDescriptor,
     languageVersionSettings: LanguageVersionSettings,
-    metadataVersion: KlibMetadataVersion,
+    metadataVersion: MetadataVersion,
     project: Project,
     exportKDoc: Boolean,
     allowErrorTypes: Boolean = false
@@ -43,9 +42,10 @@ class KlibMetadataIncrementalSerializer(
     metadataVersion = metadataVersion,
     project = project,
     exportKDoc = exportKDoc,
-    skipExpects = true, // Incremental compilation is not supposed to work when producing pure metadata (IR-less) KLIBs.
-    allowErrorTypes = allowErrorTypes
-), KlibSingleFileMetadataSerializer<KtFile> {
+    // Incremental compilation is not supposed to work when producing pure metadata (IR-less) KLIBs.
+    skipExpects = true
+),
+    KlibSingleFileMetadataSerializer<KtFile> {
 
     constructor(
         files: List<KtFile>,
@@ -53,17 +53,18 @@ class KlibMetadataIncrementalSerializer(
         project: Project,
         bindingContext: BindingContext,
         moduleDescriptor: ModuleDescriptor,
-        allowErrorTypes: Boolean,
+        allowErrorTypes: Boolean
     ) : this(
         ktFiles = files,
         bindingContext = bindingContext,
         moduleDescriptor = moduleDescriptor,
         languageVersionSettings = configuration.languageVersionSettings,
-        metadataVersion = configuration.get(CommonConfigurationKeys.METADATA_VERSION) as? KlibMetadataVersion
-            ?: KlibMetadataVersion.INSTANCE,
+        metadataVersion =
+        configuration.get(CommonConfigurationKeys.METADATA_VERSION) as? MetadataVersion
+            ?: MetadataVersion.INSTANCE,
         project = project,
         exportKDoc = false,
-        allowErrorTypes = allowErrorTypes,
+        allowErrorTypes = allowErrorTypes
     )
 
     constructor(modulesStructure: ModulesStructure, moduleFragment: IrModuleFragment) : this(
@@ -72,7 +73,7 @@ class KlibMetadataIncrementalSerializer(
         modulesStructure.project,
         modulesStructure.frontEndResult.bindingContext,
         moduleFragment.descriptor,
-        false,
+        false
     )
 
     override fun serializeSingleFileMetadata(file: KtFile): ProtoBuf.PackageFragment {
@@ -89,7 +90,10 @@ class KlibMetadataIncrementalSerializer(
         }
     }
 
-    private fun getDescriptorForElement(context: BindingContext, element: PsiElement): DeclarationDescriptor =
+    private fun getDescriptorForElement(
+        context: BindingContext,
+        element: PsiElement
+    ): DeclarationDescriptor =
         BindingContextUtils.getNotNull(context, BindingContext.DECLARATION_TO_DESCRIPTOR, element)
 
     private fun serializePackageFragment(
@@ -97,7 +101,6 @@ class KlibMetadataIncrementalSerializer(
         scope: Collection<DeclarationDescriptor>,
         fqName: FqName
     ): ProtoBuf.PackageFragment {
-
         val allDescriptors = scope.filter {
             it.module == module
         }

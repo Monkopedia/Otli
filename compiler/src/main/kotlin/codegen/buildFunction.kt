@@ -13,6 +13,7 @@ import com.monkopedia.otli.builders.type
 import com.monkopedia.otli.type.WrappedType.Companion.pointerTo
 import org.jetbrains.kotlin.ir.backend.js.utils.isDispatchReceiver
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.file
@@ -24,7 +25,7 @@ fun buildFunction(
     visitor: CodegenVisitor?,
     isHeader: Boolean = false
 ): Symbol {
-    if (expression.extensionReceiverParameter != null) {
+    if (expression.parameters.any { it.kind == IrParameterKind.ExtensionReceiver }) {
         error("Extension receivers are not yet supported.")
     }
 

@@ -5,8 +5,7 @@ import com.monkopedia.otli.serialization.KlibMetadataIncrementalSerializer
 import com.monkopedia.otli.serialization.OtliIrFileMetadata
 import com.monkopedia.otli.serialization.OtliIrModuleSerializer
 import java.io.File
-import java.util.Properties
-import kotlin.to
+import java.util.*
 import org.jetbrains.kotlin.analyzer.AbstractAnalyzerWithCompilerReport
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
@@ -14,10 +13,11 @@ import org.jetbrains.kotlin.backend.common.CommonKLibResolver
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContextImpl
+import org.jetbrains.kotlin.backend.common.linkage.IrDeserializer
 import org.jetbrains.kotlin.backend.common.linkage.issues.checkNoUnboundSymbols
 import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLinker
+import org.jetbrains.kotlin.backend.common.linkage.partial.partialLinkageConfig
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideChecker
-import org.jetbrains.kotlin.backend.common.serialization.CompatibilityMode
 import org.jetbrains.kotlin.backend.common.serialization.DescriptorByIdSignatureFinderImpl
 import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
 import org.jetbrains.kotlin.backend.common.serialization.IrSerializationSettings
@@ -46,8 +46,6 @@ import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.IrFactory
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.descriptors.IrDescriptorBasedFunctionFactory
-import org.jetbrains.kotlin.ir.linkage.IrDeserializer
-import org.jetbrains.kotlin.ir.linkage.partial.partialLinkageConfig
 import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
 import org.jetbrains.kotlin.ir.util.SymbolTable
@@ -63,9 +61,9 @@ import org.jetbrains.kotlin.library.SerializedIrFile
 import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.impl.buildKotlinLibrary
 import org.jetbrains.kotlin.library.metadata.KlibMetadataFactories
-import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.library.unresolvedDependencies
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.progress.ProgressIndicatorAndCompilationCanceledStatus
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -637,31 +635,15 @@ fun serializeModuleIntoKlib(
     val serializerOutput = serializeModuleIntoKlib(
         moduleName = moduleFragment.name.asString(),
         irModuleFragment = moduleFragment,
-        irBuiltins = irBuiltIns,
         configuration = configuration,
         diagnosticReporter = diagnosticReporter,
-        compatibilityMode = CompatibilityMode(abiVersion),
         cleanFiles = cleanFiles,
         dependencies = dependencies,
-        createModuleSerializer = {
-                irDiagnosticReporter,
-                irBuiltins,
-                compatibilityMode,
-                normalizeAbsolutePaths,
-                sourceBaseDirs,
-                languageVersionSettings,
-                shouldCheckSignaturesOnUniqueness
-            ->
+        createModuleSerializer = { irDiagnosticReporter ->
             OtliIrModuleSerializer(
-                settings = IrSerializationSettings(
-                    languageVersionSettings = languageVersionSettings,
-                    compatibilityMode = compatibilityMode,
-                    normalizeAbsolutePaths = normalizeAbsolutePaths,
-                    sourceBaseDirs = sourceBaseDirs,
-                    shouldCheckSignaturesOnUniqueness = shouldCheckSignaturesOnUniqueness
-                ),
+                settings = IrSerializationSettings(configuration),
                 irDiagnosticReporter,
-                irBuiltins
+                irBuiltIns
             ) { OtliIrFileMetadata(emptyList()) }
         },
         metadataSerializer = metadataSerializer,
@@ -695,7 +677,7 @@ fun serializeModuleIntoKlib(
     val versions = KotlinLibraryVersioning(
         abiVersion = abiVersion,
         compilerVersion = KotlinCompilerVersion.VERSION,
-        metadataVersion = KlibMetadataVersion.INSTANCE.toString()
+        metadataVersion = MetadataVersion.INSTANCE
     )
 
     val properties = Properties().also { p ->
@@ -714,7 +696,6 @@ fun serializeModuleIntoKlib(
         manifestProperties = properties,
         moduleName = moduleName,
         nopack = nopack,
-        perFile = perFile,
         output = klibPath,
         versions = versions,
         builtInsPlatform = builtInsPlatform

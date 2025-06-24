@@ -3,18 +3,13 @@ package com.monkopedia.otli
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.monkopedia.otli.builders.CCodeBuilder
-import com.monkopedia.otli.builders.CodeBuilder
-import com.monkopedia.otli.builders.buildCode
 import com.monkopedia.otli.codegen.CodegenVisitor
 import java.io.File
-import kotlin.collections.plus
-import kotlin.text.isEmpty
-import kotlin.text.split
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
 import org.jetbrains.kotlin.backend.common.CompilationException
+import org.jetbrains.kotlin.backend.common.linkage.partial.setupPartialLinkageConfig
 import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
-import org.jetbrains.kotlin.cli.common.CommonCompilerPerformanceManager
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.ExitCode.COMPILATION_ERROR
 import org.jetbrains.kotlin.cli.common.ExitCode.INTERNAL_ERROR
@@ -44,15 +39,15 @@ import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.expressions.IrDeclarationReference
-import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
 import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
-import org.jetbrains.kotlin.js.config.produceKlibFile
 import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
 import org.jetbrains.kotlin.konan.file.ZipFileSystemCacheableAccessor
-import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
+import org.jetbrains.kotlin.platform.SimplePlatform
+import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.utils.KotlinPaths
 import org.jetbrains.kotlin.utils.join
@@ -69,10 +64,6 @@ private class DisposableZipFileSystemAccessor private constructor(
 }
 
 class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
-    class OtliCompilerPerformanceManager : CommonCompilerPerformanceManager("Otli Compiler")
-
-    override val defaultPerformanceManager: CommonCompilerPerformanceManager =
-        OtliCompilerPerformanceManager()
 
     override fun createArguments(): OtliCompilerArguments = OtliCompilerArguments()
 
@@ -118,7 +109,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         val messageCollector =
             configuration.getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY)
 
-        val pluginLoadResult = loadPlugins(paths, arguments, configuration)
+        val pluginLoadResult = loadPlugins(paths, arguments, configuration, rootDisposable)
         if (pluginLoadResult != OK) throw ExitCodeException(pluginLoadResult)
 
         if (arguments.script) {
@@ -169,7 +160,6 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
             arguments.enableSignatureClashChecks
         )
 
-        configuration.put(KlibConfigurationKeys.NO_DOUBLE_INLINING, arguments.noDoubleInlining)
         configuration.put(
             KlibConfigurationKeys.DUPLICATED_UNIQUE_NAME_STRATEGY,
             DuplicatedUniqueNameStrategy.parseOrDefault(
@@ -381,6 +371,17 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         return moduleStructure
     }
 
+    override val platform: TargetPlatform
+        get() = TargetPlatform(setOf(object : SimplePlatform("Otli") {
+            override val oldFashionedDescription: String
+                get() = "Otli"
+
+        }))
+
+    public override fun createMetadataVersion(versionArray: IntArray): BinaryVersion {
+        return MetadataVersion(*versionArray)
+    }
+
     public override fun setupPlatformSpecificArgumentsAndServices(
         configuration: CompilerConfiguration,
         arguments: OtliCompilerArguments,
@@ -409,9 +410,6 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
     }
 
     override fun executableScriptFileName(): String = "otlic"
-
-    public override fun createMetadataVersion(versionArray: IntArray): BinaryVersion =
-        KlibMetadataVersion(*versionArray)
 
     override fun MutableList<String>.addPlatformOptions(arguments: OtliCompilerArguments) {}
 

@@ -15,7 +15,7 @@ class OtliIrModuleSerializer(
         OtliIrFileEmptyMetadataFactory
 ) : IrModuleSerializer<OtliIrFileSerializer>(settings, diagnosticReporter) {
 
-    override val globalDeclarationTable = OtliGlobalDeclarationTable(irBuiltIns)
+    override val globalDeclarationTable = OtliGlobalDeclarationTable(irBuiltIns, settings)
 
     override fun createSerializerForFile(file: IrFile): OtliIrFileSerializer = OtliIrFileSerializer(
         settings,

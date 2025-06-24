@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationBase
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
 import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
-import org.jetbrains.kotlin.ir.declarations.IrErrorDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -161,9 +160,6 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         visitFunction(declaration, data)
 
     override fun visitEnumEntry(declaration: IrEnumEntry, data: CodeBuilder): Symbol =
-        visitDeclaration(declaration, data)
-
-    override fun visitErrorDeclaration(declaration: IrErrorDeclaration, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
 
     override fun visitField(declaration: IrField, data: CodeBuilder): Symbol =

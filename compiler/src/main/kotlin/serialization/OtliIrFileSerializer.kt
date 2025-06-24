@@ -17,10 +17,10 @@ object OtliIrFileEmptyMetadataFactory : OtliIrFileMetadataFactory {
 class OtliIrFileSerializer(
     settings: IrSerializationSettings,
     declarationTable: DeclarationTable.Default,
-    private val jsIrFileMetadataFactory: OtliIrFileMetadataFactory
+    private val otliIrFileMetadataFactory: OtliIrFileMetadataFactory
 ) : IrFileSerializer(settings, declarationTable) {
     override fun backendSpecificExplicitRoot(node: IrAnnotationContainer) = true
     override fun backendSpecificExplicitRootExclusion(node: IrAnnotationContainer) = false
     override fun backendSpecificMetadata(irFile: IrFile) =
-        jsIrFileMetadataFactory.createOtliIrFileMetadata(irFile)
+        otliIrFileMetadataFactory.createOtliIrFileMetadata(irFile)
 }
