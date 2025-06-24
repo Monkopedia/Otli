@@ -1,4 +1,4 @@
-SOURCES := $(wildcard src/kotlin/*/*.kt) $(wildcard src/kotlin/*/*/*.kt)
+SOURCES := $(wildcard src/otli/*/*.kt) $(wildcard src/otli/*/*/*.kt)
 OUTPUT_DIR := build/
 OTLIC := ../otlic.sh
 
@@ -23,7 +23,7 @@ otli-test-source: $(TEST_SOURCES)
 	$(OTLIC) -Xallow-kotlin-package -ir-output-dir $(TEST_OUTPUT_DIR) -ir-output-name otli-stdlib-test -libraries=build/otli-stdlib.klib:../otli-test/build/otli-test.klib -Xdont-warn-on-error-suppression $^
 
 $(TEST_EXE): otli-test-source $(wildcard $(TEST_OUTPUT_DIR)/*.c)
-	clang -lcunit -I src/otli/include -o $(TEST_EXE) $(TEST_OUTPUT_DIR)/*.c
+	clang -lcunit -I src/c/include -o $(TEST_EXE) $(TEST_OUTPUT_DIR)/*.c
 
 test: $(TEST_EXE)
 	./$(TEST_EXE)

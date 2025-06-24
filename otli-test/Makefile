@@ -1,4 +1,4 @@
-SOURCES := $(wildcard src/kotlin/*/*.kt) $(wildcard src/kotlin/*/*/*.kt)
+SOURCES := $(wildcard src/otli/*/*.kt) $(wildcard src/otli/*/*/*.kt)
 OUTPUT_DIR := build/
 OTLIC := ../otlic.sh
 
