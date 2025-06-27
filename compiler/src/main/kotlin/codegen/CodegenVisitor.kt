@@ -8,8 +8,10 @@ import com.monkopedia.otli.builders.FileSymbol
 import com.monkopedia.otli.builders.GroupSymbol
 import com.monkopedia.otli.builders.LocalVar
 import com.monkopedia.otli.builders.Raw
+import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Return
 import com.monkopedia.otli.builders.Symbol
+import com.monkopedia.otli.builders.addressOf
 import com.monkopedia.otli.builders.block
 import com.monkopedia.otli.builders.dereference
 import com.monkopedia.otli.builders.dot
@@ -107,6 +109,7 @@ import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 
@@ -240,7 +243,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         body.expression.accept(this@CodegenVisitor, data)
 
     override fun visitBlockBody(body: IrBlockBody, data: CodeBuilder): Symbol = block(data, Empty) {
-        body.statements.forEach { addSymbol(it.accept(this@CodegenVisitor, data)) }
+        body.statements.forEach { addSymbol(it.accept(this@CodegenVisitor, this)) }
     }
 
     override fun visitDeclarationReference(
@@ -401,11 +404,10 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitFieldAccess(expression: IrFieldAccessExpression, data: CodeBuilder): Symbol =
         visitDeclarationReference(expression, data)
 
-    override fun visitGetField(expression: IrGetField, data: CodeBuilder): Symbol {
-        return expression.receiver?.accept(this, data)
+    override fun visitGetField(expression: IrGetField, data: CodeBuilder): Symbol =
+        expression.receiver?.accept(this, data)
             ?.dot(visitDeclarationReference(expression, data))
             ?: visitDeclarationReference(expression, data)
-    }
 
     override fun visitSetField(expression: IrSetField, data: CodeBuilder): Symbol =
         visitFieldAccess(expression, data)
@@ -476,7 +478,16 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitGetValue(expression: IrGetValue, data: CodeBuilder): Symbol =
         if (expression.symbol.owner.name.asString() == "<this>") {
-            thisScopes.last().dereference
+            thisScopes.last().let {
+                val desiredType = ResolvedType(expression.type)
+                if (desiredType.isPointer == it.type.isPointer) {
+                    it.reference
+                } else if (desiredType.isPointer) {
+                    it.reference.addressOf
+                } else {
+                    it.dereference
+                }
+            }
         } else {
             visitValueAccess(expression, data)
         }

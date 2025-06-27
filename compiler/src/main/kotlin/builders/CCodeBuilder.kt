@@ -59,7 +59,7 @@ class CLocalVarIterator(
 
 open class CLocalVar(
     override val name: String,
-    val type: ResolvedType,
+    override val type: ResolvedType,
     private val initializer: Symbol?,
     private val constructorArgs: List<Symbol>?,
     private val isArrayType: Boolean = type.isArray,

@@ -28,7 +28,7 @@ class HeaderSymbol(
     val groupSymbol: GroupSymbol = GroupSymbol()
 ) : Symbol by groupSymbol, SymbolContainer by groupSymbol, CodeBuilder {
 
-    override fun addSymbol(symbol: Symbol) {
+    override fun add(symbol: Symbol) {
         groupSymbol.symbolList.add(symbol)
     }
 
@@ -49,7 +49,7 @@ class FileSymbol(
     SymbolContainer by groupSymbol,
     CodeBuilder {
 
-    override fun addSymbol(symbol: Symbol) {
+    override fun add(symbol: Symbol) {
         groupSymbol.symbolList.add(symbol)
     }
 

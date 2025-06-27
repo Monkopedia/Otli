@@ -17,6 +17,7 @@
 
 package com.monkopedia.otli.builders
 
+import com.monkopedia.otli.type.WrappedType
 import org.jetbrains.kotlin.ir.declarations.IrClass
 
 interface Symbol {
@@ -34,6 +35,7 @@ object Empty : Symbol {
 }
 
 interface LocalVar : Symbol {
+    val type: WrappedType
     val name: String
     var isExtern: Boolean
 }
@@ -41,7 +43,9 @@ interface LocalVar : Symbol {
 interface CodeBuilder {
     val parent: CodeBuilder?
 
-    fun addSymbol(symbol: Symbol)
+    fun add(symbol: Symbol)
+
+    fun addSymbol(symbol: Symbol) = add(symbol)
 
     operator fun <T : Symbol> T.unaryPlus(): T = apply {
         addSymbol(this)
@@ -59,7 +63,7 @@ class CCodeBuilder(rootScope: Scope = Scope(), internal val addSemis: Boolean = 
     val currentScope: Scope
         get() = scopes.last()
 
-    override fun addSymbol(symbol: Symbol) {
+    override fun add(symbol: Symbol) {
         symbolList.add(symbol)
     }
 

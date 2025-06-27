@@ -18,7 +18,7 @@ package com.monkopedia.otli.builders
 import com.monkopedia.otli.codegen.BoundIterator
 import com.monkopedia.otli.codegen.IteratorSymbol
 
-open class Reference(private val arg: LocalVar) : Symbol {
+open class Reference(val arg: LocalVar) : Symbol {
     override fun build(builder: CodeStringBuilder) {
         builder.append(arg.name)
     }
@@ -56,7 +56,7 @@ class Dereference(val arg: Symbol) :
     }
 }
 
-class Address(private val arg: Symbol) :
+class Address(val arg: Symbol) :
     Symbol,
     SymbolContainer {
     override val symbols: List<Symbol>
@@ -97,7 +97,7 @@ inline val LocalVar.dereference: Symbol
     get() = Dereference(reference)
 
 inline val Symbol.dereference: Symbol
-    get() = Dereference(this)
+    get() = if (this is Address) arg else Dereference(this)
 
 class Return(private val s: Symbol) :
     Symbol,
@@ -176,7 +176,7 @@ class Assign(
     }
 }
 
-data class Op(val operand: String, private val first: Symbol, private val second: Symbol) :
+data class Op(val operand: String, val first: Symbol, val second: Symbol) :
     Symbol,
     SymbolContainer {
 
@@ -204,20 +204,21 @@ inline fun Symbol.assign(other: Symbol, plusEqual: Boolean): Symbol = Assign(thi
 inline fun Symbol.postfix(symbol: String) = Postfix(this, symbol)
 inline fun Symbol.prefix(symbol: String) = Prefix(this, symbol)
 
-inline fun CodeBuilder.not(symbol: Symbol): Symbol =
-    if (symbol is Op) {
-        if (symbol.operand == "==") {
-            symbol.copy(operand = "!=")
-        } else if (symbol.operand == "!=") {
-            symbol.copy(operand = "==")
-        } else {
-            Not(symbol)
-        }
+inline fun CodeBuilder.not(symbol: Symbol): Symbol = if (symbol is Op) {
+    if (symbol.operand == "==") {
+        symbol.copy(operand = "!=")
+    } else if (symbol.operand == "!=") {
+        symbol.copy(operand = "==")
     } else {
         Not(symbol)
     }
+} else {
+    Not(symbol)
+}
 
-data class Not(val base: Symbol) : Symbol, SymbolContainer {
+data class Not(val base: Symbol) :
+    Symbol,
+    SymbolContainer {
     override val symbols: List<Symbol>
         get() = listOf(base)
 
@@ -276,15 +277,17 @@ class Raw(val content: String) : Symbol {
     override fun toString(): String = content
 }
 
-class RawCast(val content: String, val target: Symbol) :
+class RawCast(val type: Symbol, val target: Symbol) :
     Symbol,
     SymbolContainer {
+    constructor(content: String, target: Symbol) : this(Raw(content), target)
+
     override val symbols: List<Symbol>
-        get() = listOf(target)
+        get() = listOf(type, target)
 
     override fun build(builder: CodeStringBuilder) {
         builder.append('(')
-        builder.append(content)
+        type.build(builder)
         builder.append(')')
         target.build(builder)
     }

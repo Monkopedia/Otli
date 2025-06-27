@@ -14,6 +14,8 @@ import com.monkopedia.otli.builders.define
 import com.monkopedia.otli.builders.dot
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
+import com.monkopedia.otli.type.WrappedType
+import com.monkopedia.otli.type.coerce
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -22,6 +24,8 @@ import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classFqName
+import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
@@ -68,6 +72,17 @@ fun CodegenVisitor.buildCall(
             else -> error("Unsupported operator: $name")
         }
     }
+    if (receiver?.type?.classOrNull?.owner?.isData == true) {
+        when (name) {
+            "copy" -> return buildStructCopy(
+                expression,
+                name,
+                arguments,
+                data,
+                pkg
+            )
+        }
+    }
     if (pkg.startsWith("kotlin")) {
         if (pkg.startsWith("kotlin.test")) {
             return buildTestMethod(
@@ -111,10 +126,14 @@ fun CodegenVisitor.buildCall(
             )
 
             "hashCode" -> {
-                if (receiver?.type?.classFqName?.asString() == "kotlin.Int") {
-                    receiver.accept(this@buildCall, data)
-                } else {
-                    error("Unsupported type ${receiver?.type?.classFqName}")
+                when (receiver?.type?.classFqName?.asString()) {
+                    "kotlin.Int" -> receiver.accept(this@buildCall, data)
+                    "kotlin.Boolean" -> receiver.accept(this@buildCall, data).let { base ->
+                        val type = ResolvedType(receiver.type)
+                        type.coerce(base, WrappedType("int32_t"))
+                    }
+
+                    else -> error("Unsupported type ${receiver?.type?.classFqName}")
                 }
             }
 
@@ -124,9 +143,18 @@ fun CodegenVisitor.buildCall(
     if (isPropertyAccessor) {
         val symbol = correspondingProperty?.let {
             declarationLookup[it] ?: it.backingField?.let(declarationLookup::get)
-        } ?: error("Cannot find declaration for $correspondingProperty")
+        } ?: error(
+            "Cannot find declaration for ${
+                buildString {
+                    correspondingProperty?.accept(DumpIrTreeVisitor(this), "")
+                }
+            }"
+        )
         return expression?.dispatchReceiver?.accept(this, data)?.dot(symbol.reference)
             ?: symbol.reference
+    }
+    if (pkg.startsWith("otli")) {
+        return buildOtliMethod(receiver, expression, name, arguments, data, returnType, pkg)
     }
     return Call(
         name,

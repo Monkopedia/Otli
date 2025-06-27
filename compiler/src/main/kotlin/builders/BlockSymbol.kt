@@ -44,7 +44,7 @@ class BlockSymbol(
         postSymbol?.build(builder)
     }
 
-    override fun addSymbol(symbol: Symbol) {
+    override fun add(symbol: Symbol) {
         if (symbol is GroupSymbol) {
             symbolList += symbol.symbols
         } else {
