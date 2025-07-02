@@ -2,12 +2,17 @@
 kotlin = "2.2.0"
 serialization = "1.8.1"
 shadow = "8.3.6"
+ksrpc = "0.9.6"
 
 [libraries]
 kotlin-compiler = { module = "org.jetbrains.kotlin:kotlin-compiler", version.ref = "kotlin" }
 kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+ksrpc = { module = "com.monkopedia.ksrpc:ksrpc-core", version.ref = "ksrpc" }
+ksrpc-jni = { module = "com.monkopedia.ksrpc:ksrpc-jni", version.ref = "ksrpc" }
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-shadow = { id = "com.gradleup.shadow", version.ref = "shadow"}
+ksrpc = { id = "com.monkopedia.ksrpc.plugin", version.ref = "ksrpc" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

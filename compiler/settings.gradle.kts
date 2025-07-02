@@ -6,6 +6,8 @@
  */
 
 rootProject.name = "otlic"
+include(":common")
+include(":native")
 
 dependencyResolutionManagement {
     repositories {

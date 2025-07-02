@@ -3,8 +3,10 @@ package com.monkopedia.otli
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.monkopedia.otli.builders.CCodeBuilder
+import com.monkopedia.otli.clang.getClangService
 import com.monkopedia.otli.codegen.CodegenVisitor
 import java.io.File
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
 import org.jetbrains.kotlin.backend.common.CompilationException
 import org.jetbrains.kotlin.backend.common.linkage.partial.setupPartialLinkageConfig
