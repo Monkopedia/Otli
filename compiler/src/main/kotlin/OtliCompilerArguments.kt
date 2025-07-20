@@ -62,6 +62,18 @@ class OtliCompilerArguments : CommonKlibBasedCompilerArguments() {
             field = if (value.isNullOrEmpty()) null else value
         }
 
+    @Argument(
+        value = "-interop",
+        valueDescription = "<path>",
+        description = "Path to an interop definition, " +
+            "which will be output as a klib."
+    )
+    var interop: String? = null
+        set(value) {
+            checkFrozen()
+            field = if (value.isNullOrEmpty()) null else value
+        }
+
     // Advanced options
 
     @Argument(

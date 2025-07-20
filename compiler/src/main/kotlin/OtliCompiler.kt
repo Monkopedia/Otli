@@ -3,10 +3,14 @@ package com.monkopedia.otli
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.monkopedia.otli.builders.CCodeBuilder
+import com.monkopedia.otli.clang.ClangIndexConfig
+import com.monkopedia.otli.clang.consumeAsFlow
 import com.monkopedia.otli.clang.getClangService
 import com.monkopedia.otli.codegen.CodegenVisitor
 import java.io.File
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
 import org.jetbrains.kotlin.backend.common.CompilationException
 import org.jetbrains.kotlin.backend.common.linkage.partial.setupPartialLinkageConfig
@@ -83,6 +87,22 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
         paths: KotlinPaths?
     ): ExitCode {
         try {
+            arguments.interop?.let { interop ->
+                val file = File(interop)
+                if (!file.exists()) {
+                    error("Can't find $file")
+                }
+                val config = Json.decodeFromString<ClangIndexConfig>(file.readText())
+                val absoluteConfig = config.makeAbsolute(file.parentFile)
+                runBlocking {
+                    val service = getClangService()
+                    val index = service.index(absoluteConfig)
+                    val results = index.consumeAsFlow.toList()
+                    println("Got results ${results.size}")
+                    println("${results.joinToString("\n")}")
+                }
+                return OK
+            }
             val irOutput = compileToIr(arguments, configuration, rootDisposable, paths)
             if (!arguments.outputKlib) {
                 val builder = CCodeBuilder()
@@ -374,15 +394,15 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
     }
 
     override val platform: TargetPlatform
-        get() = TargetPlatform(setOf(object : SimplePlatform("Otli") {
-            override val oldFashionedDescription: String
-                get() = "Otli"
+        get() = TargetPlatform(
+            setOf(object : SimplePlatform("Otli") {
+                override val oldFashionedDescription: String
+                    get() = "Otli"
+            })
+        )
 
-        }))
-
-    public override fun createMetadataVersion(versionArray: IntArray): BinaryVersion {
-        return MetadataVersion(*versionArray)
-    }
+    public override fun createMetadataVersion(versionArray: IntArray): BinaryVersion =
+        MetadataVersion(*versionArray)
 
     public override fun setupPlatformSpecificArgumentsAndServices(
         configuration: CompilerConfiguration,
@@ -468,3 +488,21 @@ class MyVisitor : IrVisitor<Unit, Unit>() {
         depth--
     }
 }
+
+fun ClangIndexConfig.makeAbsolute(baseDirectory: File): ClangIndexConfig = ClangIndexConfig(
+    compiler.maybeRelative(baseDirectory) ?: compiler,
+    includePaths.mapNotNull {
+        it.maybeRelative(baseDirectory) ?: null.also {
+            println("Warning: Ignoring $it as it is not found")
+        }
+    },
+    compilerFlags,
+    targetFile.maybeRelative(baseDirectory) ?: error("Cannot find target file $targetFile"),
+    pkgs
+)
+
+private fun String.maybeRelative(baseDirectory: File): String? = this.takeIf {
+    it.startsWith("/") && File(it).exists()
+}
+    ?: File(baseDirectory, this).takeIf { it.exists() }?.absolutePath
+    ?: File(this).takeIf { it.exists() }?.absolutePath
