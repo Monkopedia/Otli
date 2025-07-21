@@ -1,0 +1,3 @@
+This sample is a copy of the ledc header for esp-idf. It has segments taken from esp32c6 headers to
+make sure it is compileable in isolation. It is not meant fo use in any way other than testing
+parsing of the header.

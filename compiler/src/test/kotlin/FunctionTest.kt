@@ -100,6 +100,26 @@ class FunctionTest {
         """.trimIndent()
     )
 
+
+    @Test
+    fun `add function external`() = transformTest(
+        otliCode = """
+                    external fun addition(x: Int, y: Int): Int
+                    
+                    fun add(x: Int, y: Int): Int = addition(x, y)
+        """.trimIndent(),
+        expected = """
+                    #include <stdint.h>
+                    
+                    
+                    int32_t add(int32_t x, int32_t y) {
+                    
+                        return addition(x, y);
+                    }
+                    
+        """.trimIndent()
+    )
+
 //    @Test
 //    fun `create lambda`() = transformTest(
 //        otliCode = """

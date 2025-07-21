@@ -98,6 +98,7 @@ class OtliCompiler : CLICompiler<OtliCompilerArguments>() {
                     val service = getClangService()
                     val index = service.index(absoluteConfig)
                     val results = index.consumeAsFlow.toList()
+                        .filter { it.file == absoluteConfig.targetFile }
                     println("Got results ${results.size}")
                     println("${results.joinToString("\n")}")
                 }

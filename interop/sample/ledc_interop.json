@@ -1,0 +1,9 @@
+{
+    "compiler": "clang",
+    "includePaths": ["include"],
+    "compilerFlags": [],
+    "targetFile": "include/ledc_isolated_sample.h",
+    "pkgs": {
+        "ledc": ["*"]
+    }
+}

@@ -2,6 +2,7 @@
 
 package com.monkopedia.otli.codegen
 
+import com.monkopedia.otli.builders.CLocalVar
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.Empty
 import com.monkopedia.otli.builders.FileSymbol
@@ -154,6 +155,9 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitFunction(declaration: IrFunction, data: CodeBuilder): Symbol {
         val lastFunction = currentFunction
         currentFunction = declaration
+        if (declaration.isExternal) {
+            return GroupSymbol()
+        }
         return buildFunction(declaration, data, this).also {
             currentFunction = lastFunction
         }
