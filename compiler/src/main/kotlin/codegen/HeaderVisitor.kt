@@ -8,6 +8,7 @@ import com.monkopedia.otli.builders.HeaderSymbol
 import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.define
+import com.monkopedia.otli.builders.varScope
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -30,16 +31,30 @@ class HeaderVisitor(val parentVisitor: CodegenVisitor) : IrVisitor<Unit, CodeBui
     override fun visitProperty(declaration: IrProperty, data: CodeBuilder) {
         if (declaration.visibility.isVisibleOutside()) {
             data.addSymbol(
-                data.define(
-                    declaration,
-                    declaration.name.asString(),
-                    ResolvedType(
+                if (declaration.isConst) {
+                    val initializer = declaration.backingField?.initializer
+                        ?.accept(parentVisitor, data)
+                    parentVisitor.buildConst(
+                        declaration,
+                        data,
                         declaration.backingField?.type
-                            ?: error("Properties must have backing fields")
-                    ),
-                    null
-                ).also {
-                    it.isExtern = true
+                            ?: error("Properties must have backing fields"),
+                        initializer,
+                        isPublic = true,
+                        isHeader = true
+                    )
+                } else {
+                    data.define(
+                        declaration,
+                        declaration.name.asString(),
+                        ResolvedType(
+                            declaration.backingField?.type
+                                ?: error("Properties must have backing fields")
+                        ),
+                        null
+                    ).also {
+                        it.isExtern = true
+                    }
                 }
             )
         }
@@ -85,19 +100,21 @@ class HeaderVisitor(val parentVisitor: CodegenVisitor) : IrVisitor<Unit, CodeBui
             FileSymbol(
                 data,
                 declaration.packageFqName.pkgPrefix() + declaration.name + ".h"
-            ).apply {
-                val lastFile = currentFile
-                currentFile = declaration
-                val includeBlock = groupSymbol.symbolList.removeFirst()
-                addSymbol(
-                    HeaderSymbol(this, declaration.name + ".h").apply {
-                        addSymbol(includeBlock)
-                        declaration.declarations.forEach {
-                            it.accept(this@HeaderVisitor, this)
+            ).also { file ->
+                data.varScope(true) {
+                    val lastFile = currentFile
+                    currentFile = declaration
+                    val includeBlock = file.groupSymbol.symbolList.removeFirst()
+                    file.addSymbol(
+                        HeaderSymbol(this, declaration.name + ".h").apply {
+                            this@apply.addSymbol(includeBlock)
+                            declaration.declarations.forEach {
+                                it.accept(this@HeaderVisitor, this)
+                            }
                         }
-                    }
-                )
-                currentFile = lastFile
+                    )
+                    currentFile = lastFile
+                }
             }
         )
     }

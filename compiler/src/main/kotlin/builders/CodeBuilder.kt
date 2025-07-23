@@ -17,9 +17,6 @@
 
 package com.monkopedia.otli.builders
 
-import com.monkopedia.otli.type.WrappedType
-import org.jetbrains.kotlin.ir.declarations.IrClass
-
 interface Symbol {
     fun build(builder: CodeStringBuilder)
 
@@ -34,11 +31,24 @@ object Empty : Symbol {
     override fun build(builder: CodeStringBuilder) = Unit
 }
 
+data class EmptyInclude(val include: Include) :
+    Symbol by Empty,
+    Predefines {
+    override val predefines: List<Symbol>
+        get() = listOf(include)
+}
+
 interface LocalVar : Symbol {
-    val type: WrappedType
     val name: String
     var isExtern: Boolean
 }
+
+interface TypedLocalVar : LocalVar {
+    val type: ResolvedType
+}
+
+val LocalVar.isPointer: Boolean
+    get() = (this as? TypedLocalVar)?.type?.isPointer == true
 
 interface CodeBuilder {
     val parent: CodeBuilder?
@@ -81,8 +91,8 @@ class CCodeBuilder(rootScope: Scope = Scope(), internal val addSemis: Boolean = 
 
     fun files(): Map<String, String> = builder().allFiles()
 
-    fun pushScope() {
-        scopes.add(Scope(currentScope))
+    fun pushScope(isFile: Boolean = false) {
+        scopes.add(Scope(if (isFile) null else currentScope))
     }
 
     fun popScope() {

@@ -2,14 +2,13 @@ package com.monkopedia.otli.builders
 
 import com.monkopedia.otli.type.WrappedType
 import com.monkopedia.otli.type.WrappedType.Companion.pointerTo
-import org.jetbrains.kotlin.backend.jvm.codegen.anyTypeArgument
-import org.jetbrains.kotlin.fir.backend.utils.getArrayElementType
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.types.typeOrFail
+import org.jetbrains.kotlin.ir.util.isEnumClass
 import org.jetbrains.kotlin.ir.util.packageFqName
 
 val nativeMaps = mapOf(
@@ -35,7 +34,7 @@ typealias ResolvedType = WrappedType
 
 fun ResolvedType(type: IrType): WrappedType {
     nativeMaps[type.classFqName?.asString()]?.let { return WrappedType(it) }
-    type.getClass()?.takeIf { it.isData }?.let {
+    type.getClass()?.takeIf { it.isData || it.isEnumClass }?.let {
         return WrappedType(it.typeName())
     }
     if (type.classFqName?.asString() == "otli.Ptr") {

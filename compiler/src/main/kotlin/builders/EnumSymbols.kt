@@ -15,7 +15,7 @@
  */
 package com.monkopedia.otli.builders
 
-private class EndStruct(val name: Symbol) :
+private class EndEnum(val name: Symbol) :
     Symbol,
     SymbolContainer {
     override val symbols: List<Symbol>
@@ -28,13 +28,13 @@ private class EndStruct(val name: Symbol) :
     }
 }
 
-open class StructSymbol(name: Symbol, structBuilder: CodeBuilder) :
+open class EnumSymbol(name: Symbol, structBuilder: CodeBuilder) :
     Symbol,
     SymbolContainer {
     private val block = BlockSymbol(
         structBuilder,
         this,
-        EndStruct(name)
+        EndEnum(name)
     )
     lateinit var signature: Symbol
     val symbol: Symbol
@@ -46,7 +46,7 @@ open class StructSymbol(name: Symbol, structBuilder: CodeBuilder) :
         get() = listOf(signature)
 
     open fun init() {
-        signature = Raw("typedef struct")
+        signature = Raw("typedef enum")
     }
 
     override fun build(builder: CodeStringBuilder) {
@@ -57,38 +57,11 @@ open class StructSymbol(name: Symbol, structBuilder: CodeBuilder) :
     override fun toString(): String = signature.toString()
 }
 
-inline fun CodeBuilder.struct(name: Symbol, buildBody: BodyBuilder): Symbol {
+inline fun CodeBuilder.enum(name: Symbol, buildBody: BodyBuilder): Symbol {
     val builder = varScope {
-        StructSymbol(name, this)
+        EnumSymbol(name, this)
     }
     builder.init()
     builder.body.buildBody()
     return builder.symbol
-}
-
-fun CodeBuilder.enumEntry(key: Any, nameSymbol: Symbol, noAllocate: Boolean = false): LocalVar {
-    val name = if (noAllocate) {
-        nameSymbol.toString()
-    } else {
-        scope.allocateName(
-            nameSymbol.toString(),
-            key
-        )
-    }
-    return EnumEntry(nameSymbol, name)
-}
-
-private class EnumEntry(val nameSymbol: Symbol, override val name: String) :
-    Symbol,
-    LocalVar {
-    override val blockSemi: Boolean
-        get() = true
-    override fun build(builder: CodeStringBuilder) {
-        builder.append(name)
-        builder.append(',')
-    }
-
-    override var isExtern: Boolean
-        get() = false
-        set(value) {}
 }

@@ -92,7 +92,7 @@ inline fun CodeBuilder.function(
     functionDeclaration(functionBuilder)
 } else {
     val builder =
-        functionScope {
+        varScope {
             FunctionSymbol(this).also(functionBuilder)
         }
     builder.init()
@@ -109,7 +109,7 @@ class FunctionDeclarationSymbol(functionBuilder: CodeBuilder) :
 
 inline fun CodeBuilder.functionDeclaration(functionBuilder: FunctionBuilder.() -> Unit): Symbol {
     val builder =
-        functionScope {
+        varScope {
             FunctionDeclarationSymbol(this).also(functionBuilder)
         }
     return builder.init()

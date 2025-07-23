@@ -26,7 +26,9 @@ class HeaderSymbol(
     override val parent: CodeBuilder,
     val fileName: String,
     val groupSymbol: GroupSymbol = GroupSymbol()
-) : Symbol by groupSymbol, SymbolContainer by groupSymbol, CodeBuilder {
+) : Symbol by groupSymbol,
+    SymbolContainer by groupSymbol,
+    CodeBuilder {
 
     override fun add(symbol: Symbol) {
         groupSymbol.symbolList.add(symbol)
@@ -54,7 +56,7 @@ class FileSymbol(
     }
 
     init {
-        groupSymbol.symbolList.add(IncludeBlock(groupSymbol))
+        groupSymbol.symbolList.add(PreprocessorBlock(groupSymbol))
     }
 
     override fun build(builder: CodeStringBuilder) {

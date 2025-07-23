@@ -18,6 +18,7 @@ import com.monkopedia.otli.builders.nullArray
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
 import com.monkopedia.otli.builders.type
+import com.monkopedia.otli.builders.varScope
 import com.monkopedia.otli.type.WrappedType
 import com.monkopedia.otli.type.WrappedTypeReference
 import org.jetbrains.kotlin.backend.jvm.ir.getKtFile
@@ -205,65 +206,71 @@ val CU_GET_ERROR = Included("CU_get_error", "CUnit/CUnit.h", true)
 
 fun CodegenVisitor.buildTestMain(classes: List<IrClass>, data: CodeBuilder): Symbol =
     FileSymbol(data, "test_main.c").apply {
-        groupSymbol.symbolList.add(function {
-            this.name = Raw("main")
-            this.retType = type(WrappedType("int"))
+        data.varScope(true) {
+            groupSymbol.symbolList.add(
+                function {
+                    this.name = Raw("main")
+                    this.retType = type(WrappedType("int"))
 
-            body {
-                val targetSuites = +define(
-                    "target_suites",
-                    "target_suites",
-                    CU_SUITE_INFO,
-                    isArray = true,
-                    constructorArgs =
-                        classes.map {
-                            InlineArrayDefinition(
-                                Raw("\"${it.kotlinFqName.asString()}\""),
-                                NULL,
-                                NULL,
-                                NULL,
-                                NULL,
-                                Included(classTestsName(it), headerName(it), false)
-                            )
-                        } + CU_SUITE_INFO_NULL
-                )
-                val errorAction = +define(
-                    "error_action",
-                    "error_action",
-                    CU_ERROR_ACTION,
-                    initializer = CUEA_IGNORE
-                )
+                    body {
+                        val targetSuites = +define(
+                            "target_suites",
+                            "target_suites",
+                            CU_SUITE_INFO,
+                            isArray = true,
+                            constructorArgs =
+                            classes.map {
+                                InlineArrayDefinition(
+                                    Raw("\"${it.kotlinFqName.asString()}\""),
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    Included(classTestsName(it), headerName(it), false)
+                                )
+                            } + CU_SUITE_INFO_NULL
+                        )
+                        val errorAction = +define(
+                            "error_action",
+                            "error_action",
+                            CU_ERROR_ACTION,
+                            initializer = CUEA_IGNORE
+                        )
 
-                +buildIf {
-                    condition = CUE_SUCCESS.op("!=", Call(CU_INITIALIZE_REGISTRY))
-                    ifBlock {
+                        +buildIf {
+                            condition = CUE_SUCCESS.op("!=", Call(CU_INITIALIZE_REGISTRY))
+                            ifBlock {
+                                +Return(Call(CU_GET_ERROR))
+                            }
+                        }
+                        +buildIf {
+                            condition =
+                                Call(
+                                    CU_REGISTER_SUITES,
+                                    targetSuites.reference
+                                ).op("!=", CUE_SUCCESS)
+                            ifBlock {
+                                +Call(
+                                    FPRINTF,
+                                    STDERR,
+                                    Raw("\"suite registration failed - %s\\n\""),
+                                    Call(CU_GET_ERROR_MSG)
+                                )
+                                +Call(EXIT, Raw("1"))
+                            }
+                        }
+                        +Call(CU_BASIC_SET_MODE, CU_BRM_VERBOSE)
+                        +Call(
+                            PRINTF,
+                            Raw("\"\\nTests completed with return value %d\\n\""),
+                            Call(CU_BASIC_RUN_TESTS)
+                        )
+                        +Call(CU_SET_ERROR_ACTION, errorAction.reference)
+
+                        +Call(CU_CLEANUP_REGISTRY)
                         +Return(Call(CU_GET_ERROR))
                     }
                 }
-                +buildIf {
-                    condition =
-                        Call(CU_REGISTER_SUITES, targetSuites.reference).op("!=", CUE_SUCCESS)
-                    ifBlock {
-                        +Call(
-                            FPRINTF,
-                            STDERR,
-                            Raw("\"suite registration failed - %s\\n\""),
-                            Call(CU_GET_ERROR_MSG)
-                        )
-                        +Call(EXIT, Raw("1"))
-                    }
-                }
-                +Call(CU_BASIC_SET_MODE, CU_BRM_VERBOSE)
-                +Call(
-                    PRINTF,
-                    Raw("\"\\nTests completed with return value %d\\n\""),
-                    Call(CU_BASIC_RUN_TESTS)
-                )
-                +Call(CU_SET_ERROR_ACTION, errorAction.reference)
-
-                +Call(CU_CLEANUP_REGISTRY)
-                +Return(Call(CU_GET_ERROR))
-            }
+            )
         }
-        )
     }

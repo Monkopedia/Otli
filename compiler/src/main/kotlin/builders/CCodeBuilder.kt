@@ -64,7 +64,7 @@ open class CLocalVar(
     private val constructorArgs: List<Symbol>?,
     private val isArrayType: Boolean = type.isArray,
     private val arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0
-) : LocalVar,
+) : TypedLocalVar,
     SymbolContainer {
     private val typeSymbol = CType(if (type.isArray) type.elementType else type)
     override val symbols: List<Symbol>
@@ -114,10 +114,10 @@ open class CLocalVar(
 
 class CType(private val typeStr: String, private val include: Include? = null) :
     Symbol,
-    Includes {
+    Predefines {
     constructor(type: ResolvedType) : this(type.toString(), type.include)
 
-    override val includes: List<Symbol>
+    override val predefines: List<Symbol>
         get() = listOfNotNull(include)
 
     override fun build(builder: CodeStringBuilder) {

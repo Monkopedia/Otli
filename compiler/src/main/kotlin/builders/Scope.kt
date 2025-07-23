@@ -19,6 +19,10 @@ import com.monkopedia.otli.codegen.IteratorSymbol
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
+import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
+import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.types.classFqName
 
 class Scope(internal val parent: Scope? = null) {
     private val names =
@@ -26,11 +30,21 @@ class Scope(internal val parent: Scope? = null) {
             "object"
         )
     private val keyedMap = mutableMapOf<Any, String>()
+    val root: Scope
+        get() = parent?.root ?: this
 
     private fun isUsed(name: String): Boolean = names.contains(name) || parent?.isUsed(name) == true
 
+    @OptIn(DeprecatedForRemovalCompilerApi::class)
     fun allocateName(desiredName: String, objKey: Any? = null): String {
         objKey?.let(keyedMap::get)?.let { return it }
+        if (objKey is IrAnnotationContainer) {
+            (
+                objKey.annotations
+                    .find { it.type.classFqName?.asString() == "otli.CName" }
+                    ?.getValueArgument(0) as? IrConst
+                )?.value?.toString()?.let { return it }
+        }
         if (desiredName.isEmpty()) return allocateName("v")
         if (isUsed(desiredName)) {
             return allocateName("_$desiredName", objKey)
@@ -79,12 +93,12 @@ fun CodeBuilder.define(
 }
 
 @OptIn(ExperimentalContracts::class)
-inline fun <R> CodeBuilder.functionScope(inScope: CodeBuilder.() -> R): R {
+inline fun <R> CodeBuilder.varScope(isFile: Boolean = false, inScope: CodeBuilder.() -> R): R {
     contract {
         callsInPlace(inScope, InvocationKind.EXACTLY_ONCE)
     }
     try {
-        base.pushScope()
+        base.pushScope(isFile = isFile)
         return inScope()
     } finally {
         base.popScope()

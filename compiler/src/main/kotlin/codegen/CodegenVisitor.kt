@@ -2,7 +2,6 @@
 
 package com.monkopedia.otli.codegen
 
-import com.monkopedia.otli.builders.CLocalVar
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.Empty
 import com.monkopedia.otli.builders.FileSymbol
@@ -16,9 +15,11 @@ import com.monkopedia.otli.builders.addressOf
 import com.monkopedia.otli.builders.block
 import com.monkopedia.otli.builders.dereference
 import com.monkopedia.otli.builders.dot
+import com.monkopedia.otli.builders.isPointer
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
 import com.monkopedia.otli.builders.scopeBlock
+import com.monkopedia.otli.builders.varScope
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -110,9 +111,10 @@ import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
+import org.jetbrains.kotlin.synthetic.isVisibleOutside
 
 class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     val declarationLookup = mutableMapOf<IrDeclarationWithName, LocalVar>()
@@ -134,14 +136,14 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     override fun visitClass(declaration: IrClass, data: CodeBuilder): Symbol =
         if (declaration.isData) {
             buildStruct(declaration, data)
-        } else {
-            if (declaration.isTestClass) {
-                buildTest(declaration, data).also {
-                    testClasses.add(declaration)
-                }
-            } else {
-                visitDeclaration(declaration, data)
+        } else if (declaration.isTestClass) {
+            buildTest(declaration, data).also {
+                testClasses.add(declaration)
             }
+        } else if (declaration.isSupportedEnum) {
+            buildEnum(declaration, data)
+        } else {
+            visitDeclaration(declaration, data)
         }
 
     override fun visitAnonymousInitializer(
@@ -167,7 +169,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         visitFunction(declaration, data)
 
     override fun visitEnumEntry(declaration: IrEnumEntry, data: CodeBuilder): Symbol =
-        visitDeclaration(declaration, data)
+        buildEnumEntry(declaration, data)
 
     override fun visitField(declaration: IrField, data: CodeBuilder): Symbol =
         visitDeclaration(declaration, data)
@@ -187,6 +189,15 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitProperty(declaration: IrProperty, data: CodeBuilder): Symbol {
         val initializer = declaration.backingField?.initializer?.accept(this@CodegenVisitor, data)
+        if (declaration.isConst) {
+            return buildConst(
+                declaration,
+                data,
+                declaration.backingField?.type ?: error("Properties must have backing fields"),
+                initializer,
+                isPublic = declaration.visibility.isVisibleOutside()
+            )
+        }
         return buildProperty(
             declaration,
             data,
@@ -197,6 +208,9 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitVariable(declaration: IrVariable, data: CodeBuilder): Symbol {
         val initializer = declaration.initializer?.accept(this@CodegenVisitor, data)
+        if (declaration.isConst) {
+            return buildConst(declaration, data, declaration.type, initializer, false)
+        }
         return buildProperty(declaration, data, declaration.type, initializer)
     }
 
@@ -227,14 +241,16 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
             data,
             declaration.packageFqName.pkgPrefix() + declaration.name + ".c"
         ).apply {
-            val lastFile = currentFile
-            currentFile = declaration
-            groupSymbol.symbolList.addAll(
-                declaration.declarations.map {
-                    it.accept(this@CodegenVisitor, this)
-                }
-            )
-            currentFile = lastFile
+            data.varScope(true) {
+                val lastFile = currentFile
+                currentFile = declaration
+                groupSymbol.symbolList.addAll(
+                    declaration.declarations.map {
+                        it.accept(this@CodegenVisitor, this)
+                    }
+                )
+                currentFile = lastFile
+            }
         }
     }
 
@@ -356,7 +372,11 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         visitDeclarationReference(expression, data)
 
     override fun visitConst(expression: IrConst, data: CodeBuilder): Symbol =
-        Raw(expression.value.toString())
+        if (expression.type.classFqName?.asString() == "kotlin.String") {
+            Raw($$"\"$${expression.value}\"")
+        } else {
+            Raw(expression.value.toString())
+        }
 
     override fun visitConstantValue(expression: IrConstantValue, data: CodeBuilder): Symbol =
         visitExpression(expression, data)
@@ -484,7 +504,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         if (expression.symbol.owner.name.asString() == "<this>") {
             thisScopes.last().let {
                 val desiredType = ResolvedType(expression.type)
-                if (desiredType.isPointer == it.type.isPointer) {
+                if (desiredType.isPointer == it.isPointer) {
                     it.reference
                 } else if (desiredType.isPointer) {
                     it.reference.addressOf

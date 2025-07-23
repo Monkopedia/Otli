@@ -2,8 +2,8 @@ package com.monkopedia.otli.builders
 
 import org.jetbrains.kotlin.name.FqName
 
-interface Includes {
-    val includes: List<Symbol>
+interface Predefines {
+    val predefines: List<Symbol>
 }
 
 data class KotlinSymbol(val fqName: FqName)
@@ -33,9 +33,38 @@ data class Include(val include: String, val isSystem: Boolean) : Symbol {
     }
 }
 
-data class Included(val text: String, val include: String, val isSystem: Boolean) : Symbol,
-    Includes {
-    override val includes: List<Symbol>
+data class Define(val name: String, val value: Symbol) :
+    Symbol,
+    SymbolContainer {
+
+    override val symbols: List<Symbol>
+        get() = listOf(value)
+
+    override fun build(builder: CodeStringBuilder) {
+        builder.append("#define ")
+        builder.append(name)
+        builder.append(' ')
+        value.build(builder)
+    }
+}
+
+data class DefineReference(val define: Define, override val type: ResolvedType) :
+    Predefines,
+    Symbol by Empty,
+    TypedLocalVar {
+    override val predefines: List<Symbol>
+        get() = listOf(define)
+    override val name: String
+        get() = define.name
+    override var isExtern: Boolean
+        get() = false
+        set(value) {}
+}
+
+data class Included(val text: String, val include: String, val isSystem: Boolean) :
+    Symbol,
+    Predefines {
+    override val predefines: List<Symbol>
         get() = listOf(Include(include, isSystem))
     override val blockSemi: Boolean
         get() = text.isEmpty()
@@ -44,26 +73,41 @@ data class Included(val text: String, val include: String, val isSystem: Boolean
         builder.append(text)
     }
 
-    override fun toString(): String {
-        return text
-    }
+    override fun toString(): String = text
 }
 
-class IncludeBlock(val parent: Symbol) : Symbol {
+class PreprocessorBlock(val parent: Symbol) : Symbol {
     override val blockSemi: Boolean
         get() = true
 
     override fun build(builder: CodeStringBuilder) {
-        val includes = parent.symbolAndChildren.filterIsInstance<Includes>()
-            .flatMap { it.includes }
-            .toSet()
-            .sortedBy {
-                (it as? Include)?.sortString() ?: ("a" + it.toString())
+        val predefs = parent.symbolAndChildren.filterIsInstance<Predefines>()
+            .flatMap { it.predefines }
+        val defines = predefs.filterIsInstance<Define>()
+        val includes = (predefs - defines).toSet().toMutableSet()
+        for (def in defines) {
+            val defIncludes = def.symbolAndChildren.filterIsInstance<Predefines>()
+                .flatMap { it.predefines }
+                .toSet()
+                .sortedIncludes()
+            for (inc in defIncludes) {
+                if (inc in includes) {
+                    includes -= inc
+                    inc.build(builder)
+                    builder.append("\n")
+                }
             }
-        includes.forEach {
+            def.build(builder)
+            builder.append("\n")
+        }
+        includes.sortedIncludes().forEach {
             it.build(builder)
             builder.append("\n")
         }
+    }
+
+    private fun Iterable<Symbol>.sortedIncludes(): List<Symbol> = sortedBy {
+        (it as? Include)?.sortString() ?: ("a" + it.toString())
     }
 }
 
