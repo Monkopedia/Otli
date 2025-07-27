@@ -2,6 +2,7 @@ package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
+import com.monkopedia.otli.builders.Dot
 import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.InlineArrayDefinition
 import com.monkopedia.otli.builders.Op
@@ -70,10 +71,10 @@ private fun CodegenVisitor.buildAlloc(
     val argSymbol = arg.accept(this, data)
     if (argSymbol is InlineArrayDefinition) {
         argSymbol.symbols.forEach {
-            require(it is Op && it.operand == ":") {
+            require(it is Op && it.operand == "=" && it.first is Dot) {
                 "Unexpected initialization symbol $it"
             }
-            data.addSymbol(tmpVar.dereference.dot(it.first).op("=", it.second))
+            data.addSymbol(tmpVar.dereference.dot((it.first as Dot).second).op("=", it.second))
         }
     } else {
         allocType.classOrFail.owner.properties.forEach {

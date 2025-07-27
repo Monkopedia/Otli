@@ -157,7 +157,7 @@ class CNameTest {
             #include "my_header.h"
             
             
-            my_struct_t a = {a_val : 5, b_val : true};
+            my_struct_t a = {.a_val = 5, .b_val = true};
             
         """.trimIndent()
     )
@@ -183,7 +183,7 @@ class CNameTest {
             #include <my_header_system.h>
             
             
-            my_struct_system_t a = {a_val : 5, b_val : true};
+            my_struct_system_t a = {.a_val = 5, .b_val = true};
             
         """.trimIndent()
     )
@@ -209,7 +209,7 @@ class CNameTest {
             #include "my_header.h"
             
             
-            my_struct_t a = {a_val : 5, b_val : true};
+            my_struct_t a = {.a_val = 5, .b_val = true};
             
         """.trimIndent()
     )

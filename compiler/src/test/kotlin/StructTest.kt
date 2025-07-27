@@ -150,8 +150,8 @@ class StructTest {
             $hashCode
             $equals
             
-            otli_test_A a = {a : 1, b : 2};
-            otli_test_A b = {a : 2, b : a.b};
+            otli_test_A a = {.a = 1, .b = 2};
+            otli_test_A b = {.a = 2, .b = a.b};
             
         """.trimIndent()
     )

@@ -3,6 +3,7 @@ package com.monkopedia.otli.codegen
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.InlineArrayDefinition
 import com.monkopedia.otli.builders.Symbol
+import com.monkopedia.otli.builders.dot
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -48,8 +49,8 @@ fun CodegenVisitor.buildDataConstructor(
     *parameters.zip(arguments).map { (parameter, argument) ->
         val property = cls.properties.find { it.name == parameter.name }
             ?: error("Can't find property ${parameter.name}")
-        declarationLookup[property!!.backingField!!]!!.reference.op(
-            ":",
+        data.dot(declarationLookup[property!!.backingField!!]!!.reference).op(
+            "=",
             argument?.accept(this, data)
                 ?: parameter.defaultValue?.accept(this, data)
                 ?: error("Missing argument in ${parameter.type} ${parameter.name} $argument")

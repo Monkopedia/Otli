@@ -138,14 +138,14 @@ class Call(private val name: Symbol, private vararg val args: Symbol) :
     }
 }
 
-class Dot(private val first: Symbol, private val second: Symbol) :
+class Dot(private val first: Symbol?, val second: Symbol) :
     Symbol,
     SymbolContainer {
     override val symbols: List<Symbol>
-        get() = listOf(first, second)
+        get() = listOfNotNull(first, second)
 
     override fun build(builder: CodeStringBuilder) {
-        first.build(builder)
+        first?.build(builder)
         builder.append('.')
         second.build(builder)
     }
@@ -234,6 +234,8 @@ data class Not(val base: Symbol) :
         builder.append(')')
     }
 }
+
+inline fun CodeBuilder.dot(symbol: Symbol): Symbol = Dot(null, symbol)
 
 class Prefix(val symbol: Symbol, val prefix: String) :
     Symbol,

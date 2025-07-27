@@ -55,7 +55,7 @@ class PtrTest {
     
                 $clsBoilerPlate
     
-                MyCls inst = {a : 2, b : false};
+                MyCls inst = {.a = 2, .b = false};
                 MyCls* adr = &inst;
                 MyCls v = *adr;
                 
