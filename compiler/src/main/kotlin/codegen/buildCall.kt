@@ -32,16 +32,18 @@ import org.jetbrains.kotlin.ir.util.getPackageFragment
 fun CodegenVisitor.buildCall(expression: IrCall, data: CodeBuilder): Symbol {
     val owner = expression.symbol.owner
     return buildCall(
-        expression,
-        owner.name.asString(),
-        expression.arguments,
-        data,
-        owner.returnType,
-        owner.getPackageFragment().packageFqName.asString(),
-        owner.isOperator,
-        owner.isPropertyAccessor,
-        expression.dispatchReceiver,
-        owner.correspondingPropertySymbol?.owner
+        expression = expression,
+        name = owner.name.asString(),
+        arguments = expression.arguments,
+        data = data,
+        returnType = owner.returnType,
+        pkg = owner.getPackageFragment().packageFqName.asString(),
+        isOperator = owner.isOperator,
+        isPropertyAccessor = owner.isPropertyAccessor,
+        receiver = expression.dispatchReceiver,
+        correspondingProperty = owner.correspondingPropertySymbol?.owner,
+        fullName = owner.functionName(),
+        include = owner.include()
     )
 }
 
@@ -55,7 +57,9 @@ fun CodegenVisitor.buildCall(
     isOperator: Boolean = false,
     isPropertyAccessor: Boolean = false,
     receiver: IrExpression? = null,
-    correspondingProperty: IrProperty? = null
+    correspondingProperty: IrProperty? = null,
+    fullName: String = name,
+    include: Symbol? = null
 ): Symbol {
     if (isOperator) {
         return when (name) {
@@ -154,10 +158,19 @@ fun CodegenVisitor.buildCall(
             ?: symbol.reference
     }
     if (pkg.startsWith("otli")) {
-        return buildOtliMethod(receiver, expression, name, arguments, data, returnType, pkg)
+        return buildOtliMethod(
+            receiver,
+            expression,
+            name,
+            arguments,
+            data,
+            returnType,
+            pkg,
+            include
+        )
     }
     return Call(
-        name,
+        include?.let { Included(fullName, it) } ?: Raw(fullName),
         *arguments.map { it?.accept(this, data) ?: error("Missing argument") }
             .toTypedArray()
     )

@@ -33,7 +33,7 @@ fun CodegenVisitor.buildConstructor(
         )
     }
     val cls = type.classOrNull?.owner
-    if (cls?.isData == true) {
+    if (cls?.isData == true || cls?.isExternal == true) {
         return buildDataConstructor(cls, parameters, arguments, data)
     }
     error("Unsupported constructor ${type.classFqName}")

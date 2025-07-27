@@ -17,13 +17,13 @@
 package com.monkopedia.otli.type
 
 import com.monkopedia.otli.builders.Include
-
+import com.monkopedia.otli.builders.Symbol
 
 private val existingTypes = mutableMapOf<String, WrappedType>()
 
 abstract class WrappedType {
     //    abstract val cType: WrappedType
-    abstract val include: Include?
+    abstract val include: Symbol?
 
     open fun clone(): WrappedType = this
 
@@ -44,32 +44,36 @@ abstract class WrappedType {
     abstract val unconst: WrappedType
 
     companion object :
-            (String) -> WrappedType {
+        (String) -> WrappedType {
         const val LONG_DOUBLE_STR = "long double"
         val LONG_DOUBLE = WrappedTypeReference(LONG_DOUBLE_STR)
         val VOID = WrappedTypeReference("void")
 
-        override fun invoke(type: String): WrappedType {
+        override fun invoke(type: String): WrappedType = create(type, null)
+
+        fun create(type: String, include: Symbol? = null): WrappedType {
             if (type == "void") return VOID
             return existingTypes.getOrPut(type) {
-                if (type.startsWith("const ")) return const(invoke(type.substring("const ".length)))
+                if (type.startsWith("const ")) {
+                    return const(create(type.substring("const ".length), include))
+                }
                 if (type.endsWith("]")) {
                     val splitPoint = type.indexOfLast { it == '[' }
                     return arrayOf(
-                        invoke(type.substring(0, splitPoint)),
+                        create(type.substring(0, splitPoint), include),
                         type.substring(splitPoint + 1, type.length - 1).toIntOrNull()
                     )
                 }
                 if (type.endsWith("*")) {
-                    return pointerTo(invoke(type.substring(0, type.length - 1).trim()))
+                    return pointerTo(create(type.substring(0, type.length - 1).trim(), include))
                 }
                 if (type.endsWith("&")) {
-                    return referenceTo(invoke(type.substring(0, type.length - 1).trim()))
+                    return referenceTo(create(type.substring(0, type.length - 1).trim(), include))
                 }
                 if (type.isEmpty()) {
                     throw IllegalArgumentException("Empty type")
                 }
-                WrappedTypeReference(type)
+                WrappedTypeReference(type, include)
             }
         }
 

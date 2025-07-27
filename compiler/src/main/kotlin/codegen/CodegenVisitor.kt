@@ -141,7 +141,18 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
                 testClasses.add(declaration)
             }
         } else if (declaration.isSupportedEnum) {
-            buildEnum(declaration, data)
+            buildEnum(declaration, data).let {
+                if (declaration.isExternal) {
+                    Empty
+                } else {
+                    it
+                }
+            }
+        } else if (declaration.isExternal) {
+            // Don't add to symbol tree, just define for reference lookup
+            defineStruct(declaration, data)
+            buildStruct(declaration, data)
+            Empty
         } else {
             visitDeclaration(declaration, data)
         }
@@ -158,7 +169,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         val lastFunction = currentFunction
         currentFunction = declaration
         if (declaration.isExternal) {
-            return GroupSymbol()
+            return Empty
         }
         return buildFunction(declaration, data, this).also {
             currentFunction = lastFunction
@@ -189,21 +200,28 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitProperty(declaration: IrProperty, data: CodeBuilder): Symbol {
         val initializer = declaration.backingField?.initializer?.accept(this@CodegenVisitor, data)
-        if (declaration.isConst) {
-            return buildConst(
+        return if (declaration.isConst) {
+            buildConst(
                 declaration,
                 data,
                 declaration.backingField?.type ?: error("Properties must have backing fields"),
                 initializer,
                 isPublic = declaration.visibility.isVisibleOutside()
             )
+        } else {
+            buildProperty(
+                declaration,
+                data,
+                declaration.backingField?.type ?: error("Properties must have backing fields"),
+                initializer
+            )
+        }.let {
+            if (declaration.isExternal) {
+                Empty
+            } else {
+                it
+            }
         }
-        return buildProperty(
-            declaration,
-            data,
-            declaration.backingField?.type ?: error("Properties must have backing fields"),
-            initializer
-        )
     }
 
     override fun visitVariable(declaration: IrVariable, data: CodeBuilder): Symbol {

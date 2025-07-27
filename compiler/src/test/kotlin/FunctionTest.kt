@@ -4,7 +4,6 @@ import kotlin.test.Test
 
 class FunctionTest {
 
-
     @Test
     fun `basic main`() = transformTest(
         otliCode = """
@@ -22,7 +21,6 @@ class FunctionTest {
                     
         """.trimIndent()
     )
-
 
     @Test
     fun `add function`() = transformTest(
@@ -57,7 +55,6 @@ class FunctionTest {
                     
         """.trimIndent()
     )
-
 
     @Test
     fun `add function expression`() = transformTest(
@@ -95,11 +92,10 @@ class FunctionTest {
                     
                         return (x + y);
                     }
-                    int32_t c = add(a, b);
+                    int32_t c = com_monkopedia_otli_add(a, b);
                     
         """.trimIndent()
     )
-
 
     @Test
     fun `add function external`() = transformTest(

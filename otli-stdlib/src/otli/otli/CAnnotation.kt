@@ -19,6 +19,17 @@ import kotlin.annotation.*
 public annotation class CName(val cName: String)
 
 /**
+ * Specifies the C name of enum values for generated code. All externals should include a
+ * CName specification to ensure proper naming.
+ */
+@Target(
+    AnnotationTarget.CLASS,
+)
+@Retention(AnnotationRetention.BINARY)
+public annotation class CNames(vararg val cName: String)
+
+
+/**
  * Specifies how this symbol should be included in any generated source files that reference it.
  */
 @Target(

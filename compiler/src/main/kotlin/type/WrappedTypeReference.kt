@@ -16,6 +16,7 @@
 package com.monkopedia.otli.type
 
 import com.monkopedia.otli.builders.Include
+import com.monkopedia.otli.builders.Symbol
 import kotlinx.serialization.Serializable
 
 private val NATIVE =
@@ -48,15 +49,18 @@ private val NATIVE =
         "signed long long" to null,
         "unsigned long long" to null,
         "float" to null,
-        "double" to null,
+        "double" to null
     )
 
 @Serializable
-data class WrappedTypeReference(val name: String) : WrappedType() {
-    override val include: Include?
+data class WrappedTypeReference(val name: String, val specifiedInclude: Symbol? = null) :
+    WrappedType() {
+    override val include: Symbol?
         get() = if (isNative) {
             NATIVE[name]?.let { Include(it, true) }
-        } else null
+        } else {
+            specifiedInclude
+        }
     override val isArray: Boolean
         get() = name.endsWith("]")
     override val arraySize: Int?
@@ -70,7 +74,7 @@ data class WrappedTypeReference(val name: String) : WrappedType() {
         }
     override val elementType: WrappedType
         get() {
-            require (isArray) {
+            require(isArray) {
                 "Type is not an array"
             }
             return WrappedTypeReference(name.split("[").first())

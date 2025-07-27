@@ -16,6 +16,7 @@
 package com.monkopedia.otli.builders
 
 import com.monkopedia.otli.codegen.IteratorSymbol
+import com.monkopedia.otli.codegen.cName
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -39,11 +40,7 @@ class Scope(internal val parent: Scope? = null) {
     fun allocateName(desiredName: String, objKey: Any? = null): String {
         objKey?.let(keyedMap::get)?.let { return it }
         if (objKey is IrAnnotationContainer) {
-            (
-                objKey.annotations
-                    .find { it.type.classFqName?.asString() == "otli.CName" }
-                    ?.getValueArgument(0) as? IrConst
-                )?.value?.toString()?.let { return it }
+            objKey.cName()?.let { return it }
         }
         if (desiredName.isEmpty()) return allocateName("v")
         if (isUsed(desiredName)) {
@@ -75,7 +72,8 @@ fun CodeBuilder.define(
     initializer: Symbol? = null,
     isArray: Boolean = type.isArray,
     arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0,
-    constructorArgs: List<Symbol>? = null
+    constructorArgs: List<Symbol>? = null,
+    include: Symbol? = null
 ): LocalVar {
     val name = scope.allocateName(desiredName, objKey)
     if (initializer is IteratorSymbol) {
@@ -86,10 +84,11 @@ fun CodeBuilder.define(
             initializer,
             constructorArgs,
             isArray,
-            arraySize
+            arraySize,
+            include
         )
     }
-    return CLocalVar(name, type, initializer, constructorArgs, isArray, arraySize)
+    return CLocalVar(name, type, initializer, constructorArgs, isArray, arraySize, include)
 }
 
 @OptIn(ExperimentalContracts::class)

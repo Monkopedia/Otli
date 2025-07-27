@@ -41,6 +41,8 @@ data class EmptyInclude(val include: Include) :
 interface LocalVar : Symbol {
     val name: String
     var isExtern: Boolean
+    val include: Symbol?
+        get() = null
 }
 
 interface TypedLocalVar : LocalVar {

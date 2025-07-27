@@ -49,8 +49,9 @@ class CLocalVarIterator(
     initializer: Symbol?,
     constructorArgs: List<Symbol>?,
     isArrayType: Boolean = type.isArray,
-    arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0
-) : CLocalVar(name, type, initializer, constructorArgs, isArrayType, arraySize),
+    arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0,
+    include: Symbol? = null
+) : CLocalVar(name, type, initializer, constructorArgs, isArrayType, arraySize, include),
     BoundIterator {
     override fun hasNext(builder: CodeBuilder): Symbol = iterator.hasNext(this, builder)
 
@@ -63,7 +64,8 @@ open class CLocalVar(
     private val initializer: Symbol?,
     private val constructorArgs: List<Symbol>?,
     private val isArrayType: Boolean = type.isArray,
-    private val arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0
+    private val arraySize: Int = type.takeIf { it.isArray }?.arraySize ?: 0,
+    override val include: Symbol? = null
 ) : TypedLocalVar,
     SymbolContainer {
     private val typeSymbol = CType(if (type.isArray) type.elementType else type)
@@ -112,7 +114,7 @@ open class CLocalVar(
     }
 }
 
-class CType(private val typeStr: String, private val include: Include? = null) :
+class CType(private val typeStr: String, private val include: Symbol? = null) :
     Symbol,
     Predefines {
     constructor(type: ResolvedType) : this(type.toString(), type.include)

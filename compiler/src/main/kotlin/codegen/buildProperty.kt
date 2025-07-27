@@ -23,7 +23,8 @@ fun CodegenVisitor.buildProperty(
     declaration,
     declaration.name.asString(),
     ResolvedType(type),
-    initializer = initializer
+    initializer = initializer,
+    include = declaration.include()
 ).also {
     declarationLookup[declaration] = it
 }

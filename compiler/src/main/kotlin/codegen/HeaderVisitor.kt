@@ -51,7 +51,8 @@ class HeaderVisitor(val parentVisitor: CodegenVisitor) : IrVisitor<Unit, CodeBui
                             declaration.backingField?.type
                                 ?: error("Properties must have backing fields")
                         ),
-                        null
+                        null,
+                        include = declaration.include()
                     ).also {
                         it.isExtern = true
                     }
@@ -85,7 +86,8 @@ class HeaderVisitor(val parentVisitor: CodegenVisitor) : IrVisitor<Unit, CodeBui
                     declaration,
                     classTestsName(declaration),
                     ResolvedType("CU_TestInfo"),
-                    isArray = true
+                    isArray = true,
+                    include = declaration.include()
                 ).also {
                     it.isExtern = true
                 }

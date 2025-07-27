@@ -13,11 +13,13 @@ fun transformTest(
     expected: String,
     file: Path? = null,
     verification: (Map<String, String>) -> Unit = {
-        val generated = it.filter { it.key.endsWith(".c") }.values.first().let {
+        val generated = it.filter { it.key.endsWith(".c") }.entries.first().let { (key, text) ->
             if (file == null) {
-                it.split("\n").filter { !it.startsWith("#include \"") }.joinToString("\n")
+                text.split("\n").filter {
+                    !it.startsWith("#include \"${key.replace(".c", ".h")}")
+                }.joinToString("\n")
             } else {
-                it
+                text
             }
         }
         assertEquals(expected, generated)

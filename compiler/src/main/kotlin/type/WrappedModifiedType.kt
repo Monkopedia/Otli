@@ -16,10 +16,11 @@
 package com.monkopedia.otli.type
 
 import com.monkopedia.otli.builders.Include
+import com.monkopedia.otli.builders.Symbol
 import kotlinx.serialization.modules.serializersModuleOf
 
 abstract class WrappedWrapper(val baseType: WrappedType) : WrappedType() {
-    override val include: Include?
+    override val include: Symbol?
         get() = baseType.include
 }
 
@@ -61,16 +62,26 @@ class WrappedModifiedType(baseType: WrappedType, val modifier: String) : Wrapped
         get() = (modifier.startsWith("[") && modifier.endsWith("]")) || baseType.isArray
 
     override val arraySize: Int?
-        get() = baseType.arraySize ?: if (isArray) modifier.substring(1, modifier.length - 1)
-            .toIntOrNull() else null
+        get() = baseType.arraySize ?: if (isArray) {
+            modifier.substring(1, modifier.length - 1)
+                .toIntOrNull()
+        } else {
+            null
+        }
 
     override val unreferenced: WrappedType
         get() = if (modifier == "&") baseType else error("Cannot unreference non-reference $this")
     override val elementType: WrappedType
-        get() = if (baseType.isArray) WrappedModifiedType(
-            baseType.elementType,
-            modifier
-        ) else if (isArray) baseType else error("Type is not an array")
+        get() = if (baseType.isArray) {
+            WrappedModifiedType(
+                baseType.elementType,
+                modifier
+            )
+        } else if (isArray) {
+            baseType
+        } else {
+            error("Type is not an array")
+        }
 
     override val isReference: Boolean
         get() = modifier == "&"
@@ -85,6 +96,7 @@ class WrappedModifiedType(baseType: WrappedType, val modifier: String) : Wrapped
 class WrappedPrefixedType(baseType: WrappedType, val modifier: String) : WrappedWrapper(baseType) {
     override val isReturnable: Boolean
         get() = baseType.isReturnable
+
 //    override val cType: WrappedType
 //        get() = when (modifier) {
 //            "const" -> const(baseType.cType)

@@ -9,6 +9,7 @@ import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.enum
 import com.monkopedia.otli.builders.enumEntry
 import com.monkopedia.otli.builders.type
+import org.jetbrains.kotlin.ir.backend.js.correspondingField
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -19,6 +20,8 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isEnumClass
 import org.jetbrains.kotlin.ir.util.isFakeOverride
+import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.parentClassOrNull
 
 val IrClass.isSupportedEnum: Boolean
     get() = isEnumClass &&
@@ -45,4 +48,10 @@ fun CodegenVisitor.buildEnumEntry(entry: IrEnumEntry, data: CodeBuilder): Symbol
         declarationLookup[entry] = it
     }
 
-fun identifier(entry: IrEnumEntry): Symbol = Raw(entry.name.asString())
+fun identifier(entry: IrEnumEntry): Symbol {
+    entry.parentClassOrNull?.cNames()?.let { names ->
+        val index = entry.parentAsClass.declarations.indexOf(entry)
+        return Raw(names[index - 1])
+    }
+    return Raw(entry.name.asString())
+}

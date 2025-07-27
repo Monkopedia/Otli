@@ -18,7 +18,13 @@ package com.monkopedia.otli.builders
 import com.monkopedia.otli.codegen.BoundIterator
 import com.monkopedia.otli.codegen.IteratorSymbol
 
-open class Reference(val arg: LocalVar) : Symbol {
+open class Reference(val arg: LocalVar) :
+    Symbol,
+    Predefines {
+
+    override val predefines: List<Symbol>
+        get() = listOfNotNull(arg.include)
+
     override fun build(builder: CodeStringBuilder) {
         builder.append(arg.name)
     }

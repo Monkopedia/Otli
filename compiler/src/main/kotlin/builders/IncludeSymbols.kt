@@ -1,5 +1,6 @@
 package com.monkopedia.otli.builders
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.kotlin.name.FqName
 
 interface Predefines {
@@ -8,6 +9,7 @@ interface Predefines {
 
 data class KotlinSymbol(val fqName: FqName)
 
+@Serializable
 data class Include(val include: String, val isSystem: Boolean) : Symbol {
     override fun build(builder: CodeStringBuilder) {
         builder.append("#include ")
@@ -61,13 +63,18 @@ data class DefineReference(val define: Define, override val type: ResolvedType) 
         set(value) {}
 }
 
-data class Included(val text: String, val include: String, val isSystem: Boolean) :
+data class Included(val text: String, val symbol: Symbol) :
     Symbol,
     Predefines {
     override val predefines: List<Symbol>
-        get() = listOf(Include(include, isSystem))
+        get() = listOf(symbol)
     override val blockSemi: Boolean
         get() = text.isEmpty()
+    constructor(
+        text: String,
+        include: String,
+        isSystem: Boolean
+    ) : this(text, Include(include, isSystem))
 
     override fun build(builder: CodeStringBuilder) {
         builder.append(text)
