@@ -107,3 +107,21 @@ inline fun CodeBuilder.appendLine() {
 }
 
 inline fun type(type: ResolvedType): Symbol = CType(type)
+
+fun CodeBuilder.captureChildren(onAddChild: (Symbol) -> Unit): CodeBuilder = object : CodeBuilder {
+    override val parent: CodeBuilder = this@captureChildren
+
+    override fun add(symbol: Symbol) {
+        if (symbol is BlockSymbol && symbol.baseSymbol == Empty &&
+            (symbol.postSymbol == null || symbol.postSymbol == Empty)
+        ) {
+            symbol.symbols.filter { it != Empty }.forEach {
+                onAddChild(it)
+            }
+        } else {
+            onAddChild(symbol)
+        }
+    }
+
+    override fun addSymbol(symbol: Symbol) = add(symbol)
+}

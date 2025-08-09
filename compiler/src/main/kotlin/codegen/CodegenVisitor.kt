@@ -15,6 +15,7 @@ import com.monkopedia.otli.builders.addressOf
 import com.monkopedia.otli.builders.block
 import com.monkopedia.otli.builders.dereference
 import com.monkopedia.otli.builders.dot
+import com.monkopedia.otli.builders.captureChildren
 import com.monkopedia.otli.builders.isPointer
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
@@ -264,7 +265,10 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
                 currentFile = declaration
                 groupSymbol.symbolList.addAll(
                     declaration.declarations.map {
-                        it.accept(this@CodegenVisitor, this)
+                        it.accept(
+                            this@CodegenVisitor,
+                            this@varScope.captureChildren(groupSymbol.symbolList::add)
+                        )
                     }
                 )
                 currentFile = lastFile

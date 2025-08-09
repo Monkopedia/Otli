@@ -140,6 +140,11 @@ fun CodegenVisitor.buildCall(
                     else -> error("Unsupported type ${receiver?.type?.classFqName}")
                 }
             }
+            "let" -> buildLet(
+                expression ?: error("Cannot build let without IR object"),
+                arguments,
+                data
+            )
 
             else -> error("Unhandled stdlib method $pkg.$name")
         }

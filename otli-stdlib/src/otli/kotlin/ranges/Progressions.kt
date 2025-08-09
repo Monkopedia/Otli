@@ -35,7 +35,8 @@ public open class CharProgression
     /**
      * The last element in the progression.
      */
-    public val last: Char = error("Stub")
+    public val last: Char
+        get() = error("Stub")
 
     /**
      * The step of the progression.
@@ -97,7 +98,8 @@ public open class IntProgression
     /**
      * The last element in the progression.
      */
-    public val last: Int = error("Stub")
+    public val last: Int 
+        get() = error("Stub")
 
     /**
      * The step of the progression.
@@ -159,7 +161,8 @@ public open class LongProgression
     /**
      * The last element in the progression.
      */
-    public val last: Long = error("Stub")
+    public val last: Long 
+        get() = error("Stub")
 
     /**
      * The step of the progression.

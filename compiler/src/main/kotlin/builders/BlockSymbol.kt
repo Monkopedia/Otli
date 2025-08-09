@@ -17,8 +17,8 @@ package com.monkopedia.otli.builders
 
 class BlockSymbol(
     override val parent: CodeBuilder,
-    private val baseSymbol: Symbol,
-    private val postSymbol: Symbol? = null
+    val baseSymbol: Symbol,
+    val postSymbol: Symbol? = null
 ) : Symbol,
     CodeBuilder,
     SymbolContainer {

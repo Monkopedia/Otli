@@ -2,6 +2,7 @@
 **/build/
 !src/**/build/
 **/*.pch
+**/*.swp
 
 .kotlin
 
