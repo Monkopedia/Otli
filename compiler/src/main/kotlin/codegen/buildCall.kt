@@ -2,7 +2,6 @@ package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
-import com.monkopedia.otli.builders.Empty
 import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.Index
 import com.monkopedia.otli.builders.InlineArrayDefinition
@@ -161,6 +160,22 @@ fun CodegenVisitor.buildCall(
             )
             "apply" -> buildAlso(
                 expression ?: error("Cannot build apply without IR object"),
+                arguments,
+                data
+            )
+            "less" -> buildLess(
+                arguments,
+                data
+            )
+            "greater" -> buildGreater(
+                arguments,
+                data
+            )
+            "lessOrEqual" -> buildLessOrEqual(
+                arguments,
+                data
+            )
+            "greaterOrEqual" -> buildGreaterOrEqual(
                 arguments,
                 data
             )

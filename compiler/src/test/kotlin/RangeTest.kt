@@ -54,4 +54,124 @@ class RangeTest {
             
         """.trimIndent()
     )
+
+    @Test
+    fun testWhileLt() = transformTest(
+        """
+            fun main() {
+                var i = 0
+                while (i < 5) {
+                    println("Value: ${'$'}i")
+                    i++
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            
+            void main() {
+            
+                int32_t i = 0;
+                while (i < 5) {
+                    printf("Value: "PRId32, i);
+                    int32_t tmp0 = i;
+                    i = (tmp0 + 1);
+                    tmp0;
+            
+                }
+            
+            }
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun testWhileGt() = transformTest(
+        """
+            fun main() {
+                var i = 0
+                while (i > 5) {
+                    println("Value: ${'$'}i")
+                    i--
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            
+            void main() {
+            
+                int32_t i = 0;
+                while (i > 5) {
+                    printf("Value: "PRId32, i);
+                    int32_t tmp0 = i;
+                    i = (tmp0 - 1);
+                    tmp0;
+            
+                }
+            
+            }
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun testWhileLte() = transformTest(
+        """
+            fun main() {
+                var i = 0
+                while (i <= 5) {
+                    println("Value: ${'$'}i")
+                    i++
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            
+            void main() {
+            
+                int32_t i = 0;
+                while (i <= 5) {
+                    printf("Value: "PRId32, i);
+                    int32_t tmp0 = i;
+                    i = (tmp0 + 1);
+                    tmp0;
+            
+                }
+            
+            }
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun testWhileGte() = transformTest(
+        """
+            fun main() {
+                var i = 0
+                while (i >= 5) {
+                    println("Value: ${'$'}i")
+                    i--
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            
+            void main() {
+            
+                int32_t i = 0;
+                while (i >= 5) {
+                    printf("Value: "PRId32, i);
+                    int32_t tmp0 = i;
+                    i = (tmp0 - 1);
+                    tmp0;
+            
+                }
+            
+            }
+            
+        """.trimIndent()
+    )
 }
