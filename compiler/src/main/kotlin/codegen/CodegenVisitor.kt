@@ -14,9 +14,9 @@ import com.monkopedia.otli.builders.StringSymbol
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.addressOf
 import com.monkopedia.otli.builders.block
+import com.monkopedia.otli.builders.captureChildren
 import com.monkopedia.otli.builders.dereference
 import com.monkopedia.otli.builders.dot
-import com.monkopedia.otli.builders.captureChildren
 import com.monkopedia.otli.builders.isPointer
 import com.monkopedia.otli.builders.op
 import com.monkopedia.otli.builders.reference
@@ -264,14 +264,14 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
             data.varScope(true) {
                 val lastFile = currentFile
                 currentFile = declaration
-                groupSymbol.symbolList.addAll(
-                    declaration.declarations.map {
+                declaration.declarations.forEach {
+                    groupSymbol.symbolList.add(
                         it.accept(
                             this@CodegenVisitor,
                             this@varScope.captureChildren(groupSymbol.symbolList::add)
                         )
-                    }
-                )
+                    )
+                }
                 currentFile = lastFile
             }
         }

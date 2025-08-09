@@ -59,10 +59,10 @@ class InlineLambdaTest {
             #include <stdint.h>
             #include "OtliScopes.h"
             
-            OTLI_LET(int32_t, int32_t, _this_run, runRet, 5, {
-                runRet = (_this_run * _this_run);
+            OTLI_LET(int32_t, int32_t, _this_run, letRet, 5, {
+                letRet = (_this_run * _this_run);
             });
-            int32_t x = runRet;
+            int32_t x = letRet;
             
         """.trimIndent()
     )
@@ -87,6 +87,53 @@ class InlineLambdaTest {
             
                 });
                 void;
+            }
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun also() = transformTest(
+        """
+            var y = 0
+            val x = 5.also {
+                y = it * it
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            #include "OtliScopes.h"
+            
+            int32_t y = 0;
+            OTLI_LET_UNIT(int32_t, it, 5, {
+                    y = (it * it);
+            
+            });
+            int32_t x = it;
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun alsoUnit() = transformTest(
+        $$"""
+            fun main() {
+                5.also {
+                    println("${it * it}")
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            #include "OtliScopes.h"
+            
+            void main() {
+            
+                OTLI_LET_UNIT(int32_t, it, 5, {
+                        printf(PRId32, (it * it));
+            
+                });
+                it;
             }
             
         """.trimIndent()

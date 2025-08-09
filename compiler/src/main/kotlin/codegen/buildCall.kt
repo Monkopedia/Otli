@@ -2,6 +2,7 @@ package com.monkopedia.otli.codegen
 
 import com.monkopedia.otli.builders.Call
 import com.monkopedia.otli.builders.CodeBuilder
+import com.monkopedia.otli.builders.Empty
 import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.Index
 import com.monkopedia.otli.builders.InlineArrayDefinition
@@ -140,16 +141,29 @@ fun CodegenVisitor.buildCall(
                     else -> error("Unsupported type ${receiver?.type?.classFqName}")
                 }
             }
+
             "let" -> buildLet(
                 expression ?: error("Cannot build let without IR object"),
                 arguments,
                 data
             )
-            "run" -> buildRun(
+
+            "run" -> buildLet(
                 expression ?: error("Cannot build let without IR object"),
                 arguments,
                 data
             )
+
+            "also" -> buildAlso(
+                expression ?: error("Cannot build let without IR object"),
+                arguments,
+                data
+            )
+//            "apply" -> buildApply(
+//                expression ?: error("Cannot build let without IR object"),
+//                arguments,
+//                data
+//            )
 
             else -> error("Unhandled stdlib method $pkg.$name")
         }
@@ -164,8 +178,18 @@ fun CodegenVisitor.buildCall(
                 }
             }"
         )
-        return expression?.dispatchReceiver?.accept(this, data)?.dot(symbol.reference)
+        val prop = expression?.dispatchReceiver?.accept(this, data)?.dot(symbol.reference)
             ?: symbol.reference
+        val arg = if (expression?.dispatchReceiver != null) {
+            arguments.getOrNull(1)
+        } else {
+            arguments.getOrNull(0)
+        }
+        println("Prop accessor $name $arguments $arg")
+        if (name.startsWith("<set-") && arg != null) {
+            return prop.op("=", arg.accept(this, data)).also { println("Returning $it") }
+        }
+        return prop
     }
     if (pkg.startsWith("otli")) {
         return buildOtliMethod(

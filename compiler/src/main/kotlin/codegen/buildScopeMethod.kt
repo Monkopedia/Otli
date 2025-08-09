@@ -91,51 +91,7 @@ private fun CodegenVisitor.buildLetUnit(
     return type(WrappedType("void"))
 }
 
-fun CodegenVisitor.buildRun(
-    expression: IrCall,
-    arguments: List<IrExpression?>,
-    data: CodeBuilder
-): Symbol {
-    val retType = ResolvedType(expression.typeArguments[1] ?: error("Missing R argument for let"))
-    if (retType == WrappedType("void")) {
-        return buildRunUnit(expression, arguments, data)
-    }
-    val value = arguments[0]?.accept(this, data)
-        ?: error("Missing receiver for let call")
-    val arg = arguments[1] as? IrFunctionExpression
-        ?: error("First argument to let must be a function expression")
-    val inType = ResolvedType(expression.typeArguments[0] ?: error("Missing T argument for let"))
-    val ret = data.define(expression, "runRet", retType)
-    val args = arg.function.parameters.map {
-        data.define(it to expression, it.name.asString(), ResolvedType(it.type)).also { v ->
-            declarationLookup[it] = v
-        }.reference
-    }
-
-    data.addSymbol(
-        Call(
-            Included("OTLI_LET", "OtliScopes.h", false),
-            type(inType),
-            type(retType),
-            *args.toTypedArray(),
-            ret.reference,
-            value,
-            data.scopeBlock {
-                val builder = this.captureChildren { symbol ->
-                    if (symbol is Return) {
-                        this@scopeBlock.add(ret.reference.op("=", symbol.symbols.single()))
-                    } else {
-                        this@scopeBlock.add(symbol)
-                    }
-                }
-                arg.function.body?.accept(this@buildRun, builder)?.let(builder::add)
-            }
-        )
-    )
-    return ret.reference
-}
-
-private fun CodegenVisitor.buildRunUnit(
+fun CodegenVisitor.buildAlso(
     expression: IrCall,
     arguments: List<IrExpression?>,
     data: CodeBuilder
@@ -158,9 +114,9 @@ private fun CodegenVisitor.buildRunUnit(
             *args.toTypedArray(),
             value,
             data.scopeBlock {
-                arg.function.body?.accept(this@buildRunUnit, this)?.let(::add)
+                arg.function.body?.accept(this@buildAlso, this)?.let(::add)
             }
         )
     )
-    return type(WrappedType("void"))
+    return args.first()
 }
