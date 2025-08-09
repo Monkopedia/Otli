@@ -42,7 +42,8 @@ class Scope(internal val parent: Scope? = null) {
         if (objKey is IrAnnotationContainer) {
             objKey.cName()?.let { return it }
         }
-        if (desiredName.isEmpty()) return allocateName("v")
+        if ('$' in desiredName) return allocateName(desiredName.replace("$", "_"), objKey)
+        if (desiredName.isEmpty()) return allocateName("v", objKey)
         if (isUsed(desiredName)) {
             return allocateName("_$desiredName", objKey)
         }

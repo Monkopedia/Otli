@@ -145,6 +145,11 @@ fun CodegenVisitor.buildCall(
                 arguments,
                 data
             )
+            "run" -> buildRun(
+                expression ?: error("Cannot build let without IR object"),
+                arguments,
+                data
+            )
 
             else -> error("Unhandled stdlib method $pkg.$name")
         }
