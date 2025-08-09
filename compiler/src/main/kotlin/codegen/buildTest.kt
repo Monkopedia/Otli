@@ -9,6 +9,7 @@ import com.monkopedia.otli.builders.InlineArrayDefinition
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Return
+import com.monkopedia.otli.builders.StringSymbol
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.buildArray
 import com.monkopedia.otli.builders.buildIf
@@ -114,14 +115,14 @@ fun CodegenVisitor.buildTest(cls: IrClass, data: CodeBuilder): Symbol = GroupSym
                 }
             )
             buildArray {
-                add(Raw("\"${test.name}\""))
+                add(StringSymbol("${test.name}"))
                 add(wrapperName)
             }
         }
     } else {
         tests.map {
             buildArray {
-                add(Raw("\"${it.name}\""))
+                add(StringSymbol("${it.name}"))
                 add(methodName(it))
             }
         }
@@ -174,9 +175,9 @@ fun CodegenVisitor.buildTestMethod(
             Included("CU_assertImplementation", "CUnit/CUnit.h", true),
             buildEquals(data, arguments[0]!!, arguments[1]!!),
             Raw(line.toString()),
-            Raw("\"$condition\""),
-            Raw("\"$strFile\""),
-            Raw("\"$strFunction\""),
+            StringSymbol("$condition"),
+            StringSymbol("$strFile"),
+            StringSymbol("$strFunction"),
             Raw("CU_FALSE")
         )
     }
@@ -221,7 +222,7 @@ fun CodegenVisitor.buildTestMain(classes: List<IrClass>, data: CodeBuilder): Sym
                             constructorArgs =
                             classes.map {
                                 InlineArrayDefinition(
-                                    Raw("\"${it.kotlinFqName.asString()}\""),
+                                    StringSymbol("${it.kotlinFqName.asString()}"),
                                     NULL,
                                     NULL,
                                     NULL,
@@ -253,7 +254,7 @@ fun CodegenVisitor.buildTestMain(classes: List<IrClass>, data: CodeBuilder): Sym
                                 +Call(
                                     FPRINTF,
                                     STDERR,
-                                    Raw("\"suite registration failed - %s\\n\""),
+                                    StringSymbol("suite registration failed - %s\n"),
                                     Call(CU_GET_ERROR_MSG)
                                 )
                                 +Call(EXIT, Raw("1"))
@@ -262,7 +263,7 @@ fun CodegenVisitor.buildTestMain(classes: List<IrClass>, data: CodeBuilder): Sym
                         +Call(CU_BASIC_SET_MODE, CU_BRM_VERBOSE)
                         +Call(
                             PRINTF,
-                            Raw("\"\\nTests completed with return value %d\\n\""),
+                            StringSymbol("\nTests completed with return value %d\n"),
                             Call(CU_BASIC_RUN_TESTS)
                         )
                         +Call(CU_SET_ERROR_ACTION, errorAction.reference)

@@ -10,6 +10,7 @@ import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.Reference
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Return
+import com.monkopedia.otli.builders.StringSymbol
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.arrow
 import com.monkopedia.otli.builders.buildIf
@@ -169,7 +170,7 @@ private fun CodegenVisitor.buildToString(
                     SNPRINTF,
                     buffer.reference,
                     n.reference,
-                    Raw("\"${owner.name.asString()}@%p\""),
+                    StringSymbol("${owner.name.asString()}@%p"),
                     thiz.reference
                 )
             )

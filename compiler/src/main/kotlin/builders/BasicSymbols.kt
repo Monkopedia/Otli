@@ -285,6 +285,22 @@ class Raw(val content: String) : Symbol {
     override fun toString(): String = content
 }
 
+class StringSymbol(val content: String) : Symbol {
+    override fun build(builder: CodeStringBuilder) {
+        builder.append('"')
+        builder.append(
+            content
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+        )
+        builder.append('"')
+    }
+
+    override fun toString(): String = content
+}
+
 class RawCast(val type: Symbol, val target: Symbol) :
     Symbol,
     SymbolContainer {

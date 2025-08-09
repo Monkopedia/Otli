@@ -10,6 +10,7 @@ import com.monkopedia.otli.builders.LocalVar
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Return
+import com.monkopedia.otli.builders.StringSymbol
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.addressOf
 import com.monkopedia.otli.builders.block
@@ -395,7 +396,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitConst(expression: IrConst, data: CodeBuilder): Symbol =
         if (expression.type.classFqName?.asString() == "kotlin.String") {
-            Raw($$"\"$${expression.value}\"")
+            StringSymbol(expression.value.toString())
         } else {
             Raw(expression.value.toString())
         }
