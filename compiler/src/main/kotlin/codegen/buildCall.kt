@@ -149,21 +149,21 @@ fun CodegenVisitor.buildCall(
             )
 
             "run" -> buildLet(
-                expression ?: error("Cannot build let without IR object"),
+                expression ?: error("Cannot build run without IR object"),
                 arguments,
                 data
             )
 
             "also" -> buildAlso(
-                expression ?: error("Cannot build let without IR object"),
+                expression ?: error("Cannot build also without IR object"),
                 arguments,
                 data
             )
-//            "apply" -> buildApply(
-//                expression ?: error("Cannot build let without IR object"),
-//                arguments,
-//                data
-//            )
+            "apply" -> buildAlso(
+                expression ?: error("Cannot build apply without IR object"),
+                arguments,
+                data
+            )
 
             else -> error("Unhandled stdlib method $pkg.$name")
         }
@@ -185,9 +185,8 @@ fun CodegenVisitor.buildCall(
         } else {
             arguments.getOrNull(0)
         }
-        println("Prop accessor $name $arguments $arg")
         if (name.startsWith("<set-") && arg != null) {
-            return prop.op("=", arg.accept(this, data)).also { println("Returning $it") }
+            return prop.op("=", arg.accept(this, data))
         }
         return prop
     }

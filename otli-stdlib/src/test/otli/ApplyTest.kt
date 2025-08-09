@@ -2,26 +2,28 @@ package otli
 
 import kotlin.test.*
 
-class AlsoTest {
+class ApplyTest {
 
     @Test
     fun testExec() {
         val x = 5
-        x.also {
-            assertEquals(5, it)
+        x.apply {
+            assertEquals(5, this)
         }
     }
 
     @Test
     fun testInitialization() {
-        val x = 5.also { it + 1 }
+        val x = 5.apply { this + 1 }
         assertEquals(5, x)
     }
 
     @Test
     fun testNested() {
-        val x = 2.also { first ->
-            3.also { second ->
+        val x = 2.apply {
+            val first = this
+            3.apply {
+                val second = this
                 first + second
             }
         }
@@ -30,8 +32,10 @@ class AlsoTest {
 
     @Test
     fun testNestedUnit() {
-        2.also { first ->
-            3.also { second ->
+        2.apply {
+            val first = this
+            3.apply {
+                val second = this
                 assertEquals(5, first + second)
             }
         }
@@ -40,8 +44,10 @@ class AlsoTest {
     @Test
     fun testNestedInnerUnit() {
         var x = 0
-        2.also { first ->
-            x = 3.also { second ->
+        2.apply {
+            val first = this
+            x = 3.apply {
+                val second = this
                 first + second
             }
         }
@@ -50,8 +56,10 @@ class AlsoTest {
 
     @Test
     fun testNestedOuterUnit() {
-        2.also { first ->
-            assertEquals(3, 3.also { second ->
+        2.apply {
+            val first = this
+            assertEquals(3, 3.apply {
+                val second = this
                 first + second
             })
         }

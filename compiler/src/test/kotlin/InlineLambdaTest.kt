@@ -138,4 +138,51 @@ class InlineLambdaTest {
             
         """.trimIndent()
     )
+
+    @Test
+    fun apply() = transformTest(
+        """
+            var y = 0
+            val x = 5.apply {
+                y = this * this
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            #include "OtliScopes.h"
+            
+            int32_t y = 0;
+            OTLI_LET_UNIT(int32_t, _this_apply, 5, {
+                    y = (_this_apply * _this_apply);
+            
+            });
+            int32_t x = _this_apply;
+            
+        """.trimIndent()
+    )
+
+    @Test
+    fun applyUnit() = transformTest(
+        $$"""
+            fun main() {
+                5.apply {
+                    println("${this * this}")
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            #include "OtliScopes.h"
+            
+            void main() {
+            
+                OTLI_LET_UNIT(int32_t, _this_apply, 5, {
+                        printf(PRId32, (_this_apply * _this_apply));
+            
+                });
+                _this_apply;
+            }
+            
+        """.trimIndent()
+    )
 }
