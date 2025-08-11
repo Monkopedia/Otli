@@ -26,9 +26,10 @@ class TestTest {
             File("/tmp/assertion.kt").also {
                 it.deleteOnExit()
             }.toPath()
-        ) {files ->
+        ) { files ->
             assertEquals(setOf("assertion.kt.h", "assertion.kt.c", "test_main.c"), files.keys)
-            assertEquals("""
+            assertEquals(
+                """
                 #ifndef __ASSERTION_KT_H__
                 #define __ASSERTION_KT_H__
                 #include <CUnit/CUnit.h>
@@ -39,8 +40,11 @@ class TestTest {
                 #endif // __ASSERTION_KT_H__
                 
                 
-            """.trimIndent(), files["assertion.kt.h"])
-            assertEquals("""
+                """.trimIndent(),
+                files["assertion.kt.h"]
+            )
+            assertEquals(
+                """
                 #include <CUnit/CUnit.h>
                 #include "assertion.kt.h"
                 
@@ -54,8 +58,11 @@ class TestTest {
                 };
                 
                 
-            """.trimIndent(), files["assertion.kt.c"])
-            assertEquals("""
+                """.trimIndent(),
+                files["assertion.kt.c"]
+            )
+            assertEquals(
+                """
                 #include <CUnit/Basic.h>
                 #include <CUnit/CUnit.h>
                 #include <stddef.h>
@@ -85,7 +92,9 @@ class TestTest {
                     return CU_get_error();
                 }
                 
-            """.trimIndent(), files["test_main.c"])
+                """.trimIndent(),
+                files["test_main.c"]
+            )
         }
     }
 
@@ -118,10 +127,9 @@ class TestTest {
 
                 int32_t c = 0;
                 OTLI_REPEAT(5, {
-                        int32_t tmp0 = c;
-                        c = (tmp0 + 1);
-                        tmp0;
-
+                    int32_t tmp0 = c;
+                    c = (tmp0 + 1);
+                    tmp0;
                 });
                 CU_assertImplementation(5 == c, 12, "assertEquals(5, c)", "repeating_test.kt", "testRepeat", CU_FALSE);
             }

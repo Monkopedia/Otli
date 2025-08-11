@@ -30,6 +30,15 @@ class RepeatTest {
         }
         assertEquals(5, i)
     }
+
+    @Test
+    fun testComplexWhileLoop() {
+        var i = 0
+        while (i.let { it * 2 } < 10) {
+            i++
+        }
+        assertEquals(5, i)
+    }
     
     @Test
     fun testForcedIteration() {

@@ -5,6 +5,7 @@ package com.monkopedia.otli.codegen
 import com.monkopedia.otli.builders.BlockSymbol
 import com.monkopedia.otli.builders.CodeBuilder
 import com.monkopedia.otli.builders.FunctionBuilder
+import com.monkopedia.otli.builders.GroupSymbol
 import com.monkopedia.otli.builders.Included
 import com.monkopedia.otli.builders.ResolvedType
 import com.monkopedia.otli.builders.Symbol
@@ -73,6 +74,8 @@ private fun buildFunctionInner(
             ?: error("No body on function declaration")
         if (symbol is BlockSymbol) {
             symbol.symbols.forEach { addSymbol(it) }
+        } else if (symbol is GroupSymbol) {
+            symbol.symbolList.forEach { addSymbol(it) }
         } else {
             addSymbol(symbol)
         }

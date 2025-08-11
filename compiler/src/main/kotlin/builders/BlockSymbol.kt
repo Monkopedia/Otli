@@ -47,6 +47,10 @@ class BlockSymbol(
     override fun add(symbol: Symbol) {
         if (symbol is GroupSymbol) {
             symbolList += symbol.symbols
+        } else if (symbol is BlockSymbol && symbol.baseSymbol == Empty &&
+            (symbol.postSymbol == null || symbol.postSymbol == Empty)
+        ) {
+            symbolList += symbol.symbolList
         } else {
             symbolList += symbol
         }
@@ -59,9 +63,11 @@ class BlockSymbol(
 
 typealias BodyBuilder = CodeBuilder.() -> Unit
 
-inline fun CodeBuilder.block(symbol: Symbol, postSymbol: Symbol? = null, block: BodyBuilder): Symbol {
-    return block(this, symbol, postSymbol, block)
-}
+inline fun CodeBuilder.block(
+    symbol: Symbol,
+    postSymbol: Symbol? = null,
+    block: BodyBuilder
+): Symbol = block(this, symbol, postSymbol, block)
 
 inline fun block(
     parent: CodeBuilder,
@@ -70,6 +76,14 @@ inline fun block(
     block: BodyBuilder
 ) = BlockSymbol(parent, symbol, postSymbol).apply(block)
 
-inline fun CodeBuilder.scopeBlock(
-    block: BodyBuilder
-) = BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block)
+inline fun CodeBuilder.scopeBlock(requireScope: Boolean = true, block: BodyBuilder): Symbol =
+    BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block).let {
+        if (!requireScope && it.symbols.none { it is LocalVar }) {
+            println("Making group symbol for $it")
+            GroupSymbol().apply {
+                symbolList.addAll(it.symbols.subList(1, it.symbols.size - 1))
+            }
+        } else {
+            it
+        }
+    }

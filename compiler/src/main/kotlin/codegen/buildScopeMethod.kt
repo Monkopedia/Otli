@@ -30,33 +30,23 @@ fun CodegenVisitor.buildLet(
         ?: error("Missing receiver for let call")
     val arg = arguments[1] as? IrFunctionExpression
         ?: error("First argument to let must be a function expression")
-    val inType = ResolvedType(expression.typeArguments[0] ?: error("Missing T argument for let"))
-    val ret = data.define(expression, "letRet", retType)
-    val args = arg.function.parameters.map {
-        data.define(it to expression, it.name.asString(), ResolvedType(it.type)).also { v ->
-            declarationLookup[it] = v
-        }.reference
+    val ret = data.define(expression, "letRet", retType).also {
+        data.addSymbol(it)
     }
 
+    buildArgs(arg, data, expression, value)
+    println("Adding to ${data::class}")
     data.addSymbol(
-        Call(
-            Included("OTLI_LET", "OtliScopes.h", false),
-            type(inType),
-            type(retType),
-            *args.toTypedArray(),
-            ret.reference,
-            value,
-            data.scopeBlock {
-                val builder = this.captureChildren { symbol ->
-                    if (symbol is Return) {
-                        this@scopeBlock.add(ret.reference.op("=", symbol.symbols.single()))
-                    } else {
-                        this@scopeBlock.add(symbol)
-                    }
+        data.scopeBlock(requireScope = false) {
+            val builder = this.captureChildren { symbol ->
+                if (symbol is Return) {
+                    this@scopeBlock.add(ret.reference.op("=", symbol.symbols.single()))
+                } else {
+                    this@scopeBlock.add(symbol)
                 }
-                arg.function.body?.accept(this@buildLet, builder)?.let(builder::add)
             }
-        )
+            arg.function.body?.accept(this@buildLet, builder)?.let(builder::add)
+        }
     )
     return ret.reference
 }
@@ -70,25 +60,31 @@ private fun CodegenVisitor.buildLetUnit(
         ?: error("Missing receiver for let call")
     val arg = arguments[1] as? IrFunctionExpression
         ?: error("First argument to let must be a function expression")
-    val inType = ResolvedType(expression.typeArguments[0] ?: error("Missing T argument for let"))
+    buildArgs(arg, data, expression, value)
+    println("Adding to ${data::class}")
+    data.addSymbol(
+        data.scopeBlock(requireScope = false) {
+            arg.function.body?.accept(this@buildLetUnit, this)?.let(::add)
+        }
+    )
+    return type(WrappedType("void"))
+}
+
+private fun CodegenVisitor.buildArgs(
+    arg: IrFunctionExpression,
+    data: CodeBuilder,
+    expression: IrCall,
+    value: Symbol
+): List<Symbol> {
     val args = arg.function.parameters.map {
         data.define(it to expression, it.name.asString(), ResolvedType(it.type)).also { v ->
             declarationLookup[it] = v
+            data.addSymbol(v)
         }.reference
     }
 
-    data.addSymbol(
-        Call(
-            Included("OTLI_LET_UNIT", "OtliScopes.h", false),
-            type(inType),
-            *args.toTypedArray(),
-            value,
-            data.scopeBlock {
-                arg.function.body?.accept(this@buildLetUnit, this)?.let(::add)
-            }
-        )
-    )
-    return type(WrappedType("void"))
+    data.addSymbol(args.first().op("=", value))
+    return args
 }
 
 fun CodegenVisitor.buildAlso(
@@ -100,23 +96,14 @@ fun CodegenVisitor.buildAlso(
         ?: error("Missing receiver for let call")
     val arg = arguments[1] as? IrFunctionExpression
         ?: error("First argument to let must be a function expression")
-    val inType = ResolvedType(expression.typeArguments[0] ?: error("Missing T argument for let"))
-    val args = arg.function.parameters.map {
-        data.define(it to expression, it.name.asString(), ResolvedType(it.type)).also { v ->
-            declarationLookup[it] = v
-        }.reference
-    }
 
+    val args = buildArgs(arg, data, expression, value)
+    println("Adding to ${data::class}")
     data.addSymbol(
-        Call(
-            Included("OTLI_LET_UNIT", "OtliScopes.h", false),
-            type(inType),
-            *args.toTypedArray(),
-            value,
-            data.scopeBlock {
-                arg.function.body?.accept(this@buildAlso, this)?.let(::add)
-            }
-        )
+        data.scopeBlock(requireScope = false) {
+            arg.function.body?.accept(this@buildAlso, this)?.let(::add)
+        }
     )
+
     return args.first()
 }
