@@ -174,4 +174,34 @@ class RangeTest {
             
         """.trimIndent()
     )
+
+    @Test
+    fun testDoWhile() = transformTest(
+        """
+            fun main() {
+                var i = 0
+                do {
+                    println("Value: ${'$'}i")
+                    i--
+                } while (i >= 5)
+            }
+        """.trimIndent(),
+        """
+            #include <stdint.h>
+            
+            void main() {
+            
+                int32_t i = 0;
+                do {
+                    printf("Value: "PRId32, i);
+                    int32_t tmp0 = i;
+                    i = (tmp0 - 1);
+                    tmp0;
+            
+                } while (i >= 5);
+            
+            }
+            
+        """.trimIndent()
+    )
 }

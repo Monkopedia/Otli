@@ -336,7 +336,11 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
     }
 
     override fun visitComposite(expression: IrComposite, data: CodeBuilder): Symbol =
-        visitContainerExpression(expression, data)
+        GroupSymbol().apply {
+            expression.statements.forEach {
+                symbolList.add(it.accept(this@CodegenVisitor, data))
+            }
+        }
 
     override fun visitReturnableBlock(expression: IrReturnableBlock, data: CodeBuilder): Symbol =
         visitBlock(expression, data)
@@ -487,7 +491,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         buildLoop(loop, data)
 
     override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: CodeBuilder): Symbol =
-        visitLoop(loop, data)
+        buildLoop(loop, data)
 
     override fun visitReturn(expression: IrReturn, data: CodeBuilder): Symbol =
         Return(expression.value.accept(this@CodegenVisitor, data))

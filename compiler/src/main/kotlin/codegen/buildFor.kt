@@ -8,11 +8,12 @@ import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.SymbolContainer
 import com.monkopedia.otli.builders.captureChildren
+import com.monkopedia.otli.builders.doWhileLoop
 import com.monkopedia.otli.builders.op
-import com.monkopedia.otli.builders.postfix
 import com.monkopedia.otli.builders.prefix
 import com.monkopedia.otli.builders.reference
 import com.monkopedia.otli.builders.whileLoop
+import org.jetbrains.kotlin.ir.expressions.IrDoWhileLoop
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 
 fun CodegenVisitor.buildLoop(loop: IrWhileLoop, data: CodeBuilder): Symbol {
@@ -27,6 +28,22 @@ fun CodegenVisitor.buildLoop(loop: IrWhileLoop, data: CodeBuilder): Symbol {
     val condition = loop.condition.accept(this, conditionCapture)
     extraExpressions?.forEach { data.addSymbol(it) }
     return data.whileLoop(condition) {
+        loop.body?.accept(this@buildLoop, this)?.let(::addSymbol)
+        extraExpressions?.forEach { addSymbol(it) }
+    }
+}
+
+fun CodegenVisitor.buildLoop(loop: IrDoWhileLoop, data: CodeBuilder): Symbol {
+    var extraExpressions: MutableList<Symbol>? = null
+    val conditionCapture = data.captureChildren { symbol ->
+        if (symbol is LocalVar) {
+            data.addSymbol(symbol)
+        } else {
+            extraExpressions = (extraExpressions ?: mutableListOf()).also { it.add(symbol) }
+        }
+    }
+    val condition = loop.condition.accept(this, conditionCapture)
+    return data.doWhileLoop(condition) {
         loop.body?.accept(this@buildLoop, this)?.let(::addSymbol)
         extraExpressions?.forEach { addSymbol(it) }
     }

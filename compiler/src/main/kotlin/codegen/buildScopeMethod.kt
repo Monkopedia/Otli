@@ -35,7 +35,6 @@ fun CodegenVisitor.buildLet(
     }
 
     buildArgs(arg, data, expression, value)
-    println("Adding to ${data::class}")
     data.addSymbol(
         data.scopeBlock(requireScope = false) {
             val builder = this.captureChildren { symbol ->
@@ -61,7 +60,6 @@ private fun CodegenVisitor.buildLetUnit(
     val arg = arguments[1] as? IrFunctionExpression
         ?: error("First argument to let must be a function expression")
     buildArgs(arg, data, expression, value)
-    println("Adding to ${data::class}")
     data.addSymbol(
         data.scopeBlock(requireScope = false) {
             arg.function.body?.accept(this@buildLetUnit, this)?.let(::add)
@@ -98,7 +96,6 @@ fun CodegenVisitor.buildAlso(
         ?: error("First argument to let must be a function expression")
 
     val args = buildArgs(arg, data, expression, value)
-    println("Adding to ${data::class}")
     data.addSymbol(
         data.scopeBlock(requireScope = false) {
             arg.function.body?.accept(this@buildAlso, this)?.let(::add)

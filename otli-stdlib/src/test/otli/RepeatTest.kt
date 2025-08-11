@@ -39,6 +39,15 @@ class RepeatTest {
         }
         assertEquals(5, i)
     }
+
+    @Test
+    fun testDoWhileLoop() {
+        var i = 0
+        do {
+            i++
+        } while (i.let { it * 2 } < 10)
+        assertEquals(5, i)
+    }
     
     @Test
     fun testForcedIteration() {
