@@ -194,7 +194,10 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitModuleFragment(declaration: IrModuleFragment, data: CodeBuilder): Symbol =
         GroupSymbol().apply {
-            symbolList.addAll(declaration.files.map { it.accept(this@CodegenVisitor, data) })
+            declaration.files.forEach {
+                it.accept(this@CodegenVisitor, data.captureChildren(symbolList::add))
+                    .let(symbolList::add)
+            }
             if (testClasses.isNotEmpty()) {
                 symbolList.add(buildTestMain(testClasses, data))
             }
@@ -331,14 +334,16 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
 
     override fun visitBlock(expression: IrBlock, data: CodeBuilder): Symbol = GroupSymbol().apply {
         expression.statements.forEach {
-            symbolList.add(it.accept(this@CodegenVisitor, data))
+            symbolList.add(it.accept(this@CodegenVisitor, data.captureChildren(symbolList::add)))
         }
     }
 
     override fun visitComposite(expression: IrComposite, data: CodeBuilder): Symbol =
         GroupSymbol().apply {
             expression.statements.forEach {
-                symbolList.add(it.accept(this@CodegenVisitor, data))
+                symbolList.add(
+                    it.accept(this@CodegenVisitor, data.captureChildren(symbolList::add))
+                )
             }
         }
 

@@ -185,6 +185,11 @@ fun CodegenVisitor.buildCall(
                 arguments,
                 data
             )
+            "EQEQ" -> buildEquals(
+                data,
+                arguments[0] ?: error("Missing first argument to equals"),
+                arguments[1] ?: error("Missing second argument to equals")
+            )
 
             else -> error("Unhandled stdlib method $pkg.$name")
         }

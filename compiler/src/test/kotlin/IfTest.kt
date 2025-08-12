@@ -96,4 +96,33 @@ class IfTest {
             
         """.trimIndent()
     )
+
+    @Test
+    fun `test when`() = transformTest(
+        """
+            fun main() {
+                when (true) {
+                    true -> println("A")
+                    false -> println("B")
+                }
+            }
+        """.trimIndent(),
+        """
+            #include <stdbool.h>
+            #include <stdio.h>
+
+            void main() {
+
+                bool tmp0_subject = true;
+                if (tmp0_subject == true) {
+                    printf("A");
+                } else if (tmp0_subject == false) {
+                    printf("B");
+                }
+
+
+            }
+            
+        """.trimIndent()
+    )
 }
