@@ -85,12 +85,14 @@ inline fun block(
 ) = BlockSymbol(parent, symbol, postSymbol).apply(block)
 
 inline fun CodeBuilder.scopeBlock(requireScope: Boolean = true, block: BodyBuilder): Symbol =
-    BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block).let {
-        if (!requireScope && it.symbols.none { it is LocalVar }) {
-            GroupSymbol().apply {
-                symbolList.addAll(it.symbols.subList(1, it.symbols.size - 1))
+    varScope {
+        BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block).let {
+            if (!requireScope && it.symbols.none { it is LocalVar }) {
+                GroupSymbol().apply {
+                    symbolList.addAll(it.symbols.subList(1, it.symbols.size - 1))
+                }
+            } else {
+                it
             }
-        } else {
-            it
         }
     }
