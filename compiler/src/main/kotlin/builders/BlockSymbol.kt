@@ -45,16 +45,24 @@ class BlockSymbol(
     }
 
     override fun add(symbol: Symbol) {
-        if (symbol is GroupSymbol) {
-            symbolList += symbol.symbols
-        } else if (symbol is BlockSymbol && symbol.baseSymbol == Empty &&
-            (symbol.postSymbol == null || symbol.postSymbol == Empty)
-        ) {
-            symbolList += symbol.symbolList
-        } else {
-            symbolList += symbol
+        when (symbol) {
+            is GroupSymbol -> {
+                symbolList += symbol.symbols
+            }
+
+            is BlockSymbol if symbol.baseSymbol == Empty &&
+                (symbol.postSymbol == null || symbol.postSymbol == Empty)
+            -> {
+                symbolList += symbol.symbolList
+            }
+
+            else -> {
+                symbolList += symbol
+            }
         }
     }
+
+    fun <T> mutateSymbols(block: MutableList<Symbol>.() -> T): T = block(symbolList)
 
     override fun toString(): String =
         "Block@${hashCode()}: [ start=$baseSymbol, end=$postSymbol\n    " +
@@ -79,7 +87,6 @@ inline fun block(
 inline fun CodeBuilder.scopeBlock(requireScope: Boolean = true, block: BodyBuilder): Symbol =
     BlockSymbol(this, Raw("{\n"), Raw("}")).apply(block).let {
         if (!requireScope && it.symbols.none { it is LocalVar }) {
-            println("Making group symbol for $it")
             GroupSymbol().apply {
                 symbolList.addAll(it.symbols.subList(1, it.symbols.size - 1))
             }

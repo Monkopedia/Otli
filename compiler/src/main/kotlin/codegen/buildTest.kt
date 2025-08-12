@@ -159,7 +159,7 @@ fun CodegenVisitor.buildTestMethod(
     pkg: String = ""
 ): Symbol = when (name) {
     "assertEquals" -> {
-        if (arguments.size > 3 || arguments.size < 2) {
+        if (arguments.size !in 2..3) {
             error("Unsupported version of assertEquals")
         }
         val ktFile = currentFile?.getKtFile()
@@ -174,6 +174,29 @@ fun CodegenVisitor.buildTestMethod(
         Call(
             Included("CU_assertImplementation", "CUnit/CUnit.h", true),
             buildEquals(data, arguments[0]!!, arguments[1]!!),
+            Raw(line.toString()),
+            StringSymbol("$condition"),
+            StringSymbol("$strFile"),
+            StringSymbol("$strFunction"),
+            Raw("CU_FALSE")
+        )
+    }
+    "fail" -> {
+        if (arguments.size != 1) {
+            error("Unsupported version of assertEquals")
+        }
+        val ktFile = currentFile?.getKtFile()
+        val text = ktFile?.text
+        val condition = expression?.let {
+            text?.substring(it.startOffset, it.endOffset)
+        }
+        val line = text?.substring(0, expression?.startOffset ?: 0)?.count { it == '\n' }
+            ?: 0
+        val strFile = ktFile?.name
+        val strFunction = currentFunction?.name?.asString()
+        Call(
+            Included("CU_assertImplementation", "CUnit/CUnit.h", true),
+            Raw("false"),
             Raw(line.toString()),
             StringSymbol("$condition"),
             StringSymbol("$strFile"),

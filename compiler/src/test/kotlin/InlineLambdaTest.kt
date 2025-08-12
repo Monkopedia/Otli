@@ -39,6 +39,7 @@ class InlineLambdaTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -86,6 +87,7 @@ class InlineLambdaTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -134,6 +136,7 @@ class InlineLambdaTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -182,6 +185,7 @@ class InlineLambdaTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             

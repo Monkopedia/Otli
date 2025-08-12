@@ -9,6 +9,7 @@ import com.monkopedia.otli.builders.Parens
 import com.monkopedia.otli.builders.Raw
 import com.monkopedia.otli.builders.RawCast
 import com.monkopedia.otli.builders.ResolvedType
+import com.monkopedia.otli.builders.StringSymbol
 import com.monkopedia.otli.builders.Symbol
 import com.monkopedia.otli.builders.define
 import com.monkopedia.otli.builders.dot
@@ -19,6 +20,7 @@ import com.monkopedia.otli.type.coerce
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.isPropertyAccessor
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -115,12 +117,11 @@ fun CodegenVisitor.buildCall(
             )
 
             "println" -> Call(
-                "printf",
-                *convertArgs(
-                    arguments.singleOrNull() as? IrStringConcatenation
-                        ?: error("Wrong argument"),
-                    data
-                )
+                Included("printf", "stdio.h", true),
+                *arguments.singleOrNull()?.let { arg ->
+                    (arg as? IrStringConcatenation)?.let { it1 -> convertArgs(it1, data) }
+                        ?: (arg as? IrConst)?.value?.toString()?.let { arrayOf(StringSymbol(it)) }
+                } ?: error("Wrong argument")
             )
 
             "repeat" -> Call(
@@ -158,23 +159,28 @@ fun CodegenVisitor.buildCall(
                 arguments,
                 data
             )
+
             "apply" -> buildAlso(
                 expression ?: error("Cannot build apply without IR object"),
                 arguments,
                 data
             )
+
             "less" -> buildLess(
                 arguments,
                 data
             )
+
             "greater" -> buildGreater(
                 arguments,
                 data
             )
+
             "lessOrEqual" -> buildLessOrEqual(
                 arguments,
                 data
             )
+
             "greaterOrEqual" -> buildGreaterOrEqual(
                 arguments,
                 data

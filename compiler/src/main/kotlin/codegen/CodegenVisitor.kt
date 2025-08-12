@@ -554,7 +554,7 @@ class CodegenVisitor : IrVisitor<Symbol, CodeBuilder>() {
         visitElement(spread, data)
 
     override fun visitWhen(expression: IrWhen, data: CodeBuilder): Symbol =
-        visitExpression(expression, data)
+        buildWhen(expression, data)
 
     override fun visitBranch(branch: IrBranch, data: CodeBuilder): Symbol =
         visitElement(branch, data)

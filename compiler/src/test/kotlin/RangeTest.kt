@@ -40,6 +40,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -68,6 +69,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -98,6 +100,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -128,6 +131,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -158,6 +162,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             
@@ -188,6 +193,7 @@ class RangeTest {
         """.trimIndent(),
         """
             #include <stdint.h>
+            #include <stdio.h>
             
             void main() {
             

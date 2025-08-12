@@ -13,6 +13,7 @@ class PrintTest {
         """.trimIndent(),
         expected = """
             #include <stdint.h>
+            #include <stdio.h>
             
             int32_t a = 5;
             void main() {

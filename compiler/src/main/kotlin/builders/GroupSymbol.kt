@@ -20,6 +20,9 @@ class GroupSymbol :
 
     override val symbols: List<Symbol>
         get() = symbolList
+
+    override fun toString(): String = "Block@${hashCode()}: [\n    " +
+        symbolList.joinToString("\n    ") + "end block@${hashCode()}"
 }
 
 class HeaderSymbol(
